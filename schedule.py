@@ -304,7 +304,7 @@ class socketHandler:
         while len(fileSize) < 7: # Assuming the longest file size has 7 digits.
             fileSize = '0' + fileSize
         layer = fileName[5]
-        print fileName
+        #print fileName
         #print fileSize + " " + str(layer)
         self.cliSockets[receivingUser].sendall(fileSize + " " + str(layer))
         self.cliSockets[receivingUser].sendall(fileName)

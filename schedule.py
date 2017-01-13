@@ -1,7 +1,8 @@
 ## This file assumes a single class of users with a diagonal quality adaptation method with a pre-fetch threshold of 5 segments.
 
-import time, threading, random, socket, numpy
+import time, threading, random, socket, numpy, sys
 
+#argv = script name, slot duration, total simulation time, scheduling method
 channelMatrix = [0.9,0.1,0,0,0.1,0.8,0.1,0,0,0.1,0.8,0.1,0,0,0.1,0.9]
 
 def find_minmax(a, func):
@@ -34,8 +35,8 @@ class param:
     def __init__(self):
         self.capacity = 1
         self.userNum = 2
-        self.timeSlot = 1.5 #duration of one scheduling slot
-        self.totSimTime = 30 #duration of the entire simulation
+        self.timeSlot = float(sys.argv[1]) #duration of one scheduling slot
+        self.totSimTime = int(sys.argv[2]) #duration of the entire simulation
         self.bufferLimit = 20
         self.chanStates = 4
         self.numLayer = 2
@@ -251,7 +252,11 @@ class scheduler:
             if activeVector[i] == 1:
                 for l in range(self.param.numLayer):
                     for f in queue[i].buffer[l]:
-                        fileName = 'layer' + str(l) + '_' + str(f % 15) + '.svc'
+                        if f%30 < 10:
+                            segString = '0' + str(f % 30)
+                        else:
+                            segString = str(f % 30)
+                        fileName = 'layer' + str(l) + '_' + segString + '.svc'
                         sockets.transmitFile(fileName,i)
                         self.users[i].buffer[l] += 1
                         self.users[i].stats.receiverBuffer[l] += 1
@@ -312,7 +317,7 @@ class socketHandler:
 
 Parameters = param()
 Parameters.createVectors()
-BSNode = scheduler('optimal',Parameters)
+BSNode = scheduler(sys.argv[3],Parameters)
 Sockets = socketHandler(Parameters)
 Sockets.establishConnection()
 

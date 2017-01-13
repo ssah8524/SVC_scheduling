@@ -1,16 +1,17 @@
 #!/usr/bin/python           # This is client.py file
 
-import socket
+import socket,sys
 
 s = socket.socket()
-host = socket.gethostname()
+#host = socket.gethostname()
+host = sys.argv[1]
 port = 10002
 
 s.connect((host, port))
 
 layerNo = 2
-buffer = [-1 for i in range(layerNo)]
 
+round = [-1,-1]
 while True:
 
     message = s.recv(9)
@@ -18,11 +19,19 @@ while True:
         break
     size = int(message.split(" ")[0])
     layer = int(message.split(" ")[1])
-    buffer[layer] += 1
 
-    stringLength = 12 if buffer[layer] < 10 else 13
-    name = s.recv(stringLength)
-    file = open(r'user2_files/' + str(name),'wb')
+    name = s.recv(13)
+    segmentNo = 10*int(name[7]) + int(name[8])
+    if segmentNo == 0:
+        round[layer] += 1
+
+    if segmentNo + round[layer]*30 < 10:
+        segString = '0' + str(segmentNo + round[layer]*30)
+    else:
+        segString = str(segmentNo + round[layer]*30)
+
+    name = 'layer' + str(layer) + '_' + segString + '.svc'
+    file = open('user2_files/' + str(name),'wb')
     dat = ''
     while len(dat) < size:
         if size - len(dat) > 100000:

@@ -34,7 +34,7 @@ class param:
     def __init__(self):
         self.capacity = 1
         self.userNum = 2
-        self.timeSlot = 1.0 #duration of one scheduling slot
+        self.timeSlot = 1.5 #duration of one scheduling slot
         self.totSimTime = 30 #duration of the entire simulation
         self.bufferLimit = 20
         self.chanStates = 4
@@ -301,9 +301,11 @@ class socketHandler:
         f = open('service_files/' + fileName,'rb')
         File = f.read()
         fileSize = str(len(File))
-        while len(fileSize) < 6: # Assuming the longet file size has 6 digits.
+        while len(fileSize) < 7: # Assuming the longest file size has 7 digits.
             fileSize = '0' + fileSize
         layer = fileName[5]
+        print fileName
+        #print fileSize + " " + str(layer)
         self.cliSockets[receivingUser].sendall(fileSize + " " + str(layer))
         self.cliSockets[receivingUser].sendall(fileName)
         self.cliSockets[receivingUser].sendall(str(File))
@@ -374,7 +376,7 @@ while True:
     if totalTime >= Parameters.totSimTime:
         break
 for i in range(Parameters.userNum):
-    Sockets.cliSockets[i].send("finished")
+    Sockets.cliSockets[i].send("finished!")
 Sockets.closeConnection()
 
 meanLayerRatio = numpy.mean([BSNode.users[u].stats.layerRatio() for u in range(Parameters.userNum)])

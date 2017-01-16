@@ -1,5 +1,6 @@
 
-GROUP=node1-1.sb1.orbit-lab.org,node1-2.sb1.orbit-lab.org,node2-1.sb1.orbit-lab.org
+#GROUP=node1-1.sb1.orbit-lab.org,node1-2.sb1.orbit-lab.org,node2-1.sb1.orbit-lab.org
+GROUP=node1-1.sb4.orbit-lab.org,node1-2.sb4.orbit-lab.org,node1-3.sb4.orbit-lab.org
 
 if [[ -n "$GROUP" ]]  
 then  

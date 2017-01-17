@@ -252,7 +252,7 @@ class scheduler:
             if activeVector[i] == 1:
                 for l in range(self.param.numLayer):
                     for f in queue[i].buffer[l]:
-                        if f%30 < 10:
+                        if f % 30 < 10:
                             segString = '0' + str(f % 30)
                         else:
                             segString = str(f % 30)
@@ -286,7 +286,8 @@ class socketHandler:
         self.portNo = [10001 + i for i in range(Parameters.userNum)]
         self.servSockets = [socket.socket(socket.AF_INET, socket.SOCK_STREAM) for i in range(Parameters.userNum)]
         self.cliSockets = [socket.socket(socket.AF_INET, socket.SOCK_STREAM) for i in range(Parameters.userNum)]
-        self.host = socket.gethostname()
+        #self.host = socket.gethostname()
+        self.host = "192.168.12.1"
     def establishConnection(self): #Waits until all users have tuned in
         for i in range(self.param.userNum):
             self.servSockets[i].bind((self.host,self.portNo[i]))
@@ -322,16 +323,16 @@ for i in range(Parameters.chanStates):
     for j in range(Parameters.chanStates):
         chan_mat[i][j] = float(channelMatrix[Parameters.chanStates * i + j])
 
-for u in range(Parameters.userNum):
-    temp = 0
-    rand_chan = random.random()
-    for i in range(Parameters.chanStates):
-        if chan_mat[BSNode.users[u].chan][i] != 0:
-            temp += chan_mat[BSNode.users[u].chan][i]
-            if rand_chan <= temp:
-                BSNode.users[u].chan = i
-                BSNode.users[u].stats.chanStateTraj.append(i)
-                break
+#for u in range(Parameters.userNum):
+#    temp = 0
+#    rand_chan = random.random()
+#    for i in range(Parameters.chanStates):
+#        if chan_mat[BSNode.users[u].chan][i] != 0:
+#            temp += chan_mat[BSNode.users[u].chan][i]
+#            if rand_chan <= temp:
+#                BSNode.users[u].chan = i
+#                BSNode.users[u].stats.chanStateTraj.append(i)
+#                break
 #############Temporary###############
 
 totalTime = 0
@@ -358,16 +359,16 @@ while True:
     # Measure SNR and update the channel state for each user
     # ....
     #############Temporary###############
-    for u in range(Parameters.userNum):
-        temp = 0
-        rand_chan = random.random()
-        for i in range(Parameters.chanStates):
-            if chan_mat[BSNode.users[u].chan][i] != 0:
-                temp += chan_mat[BSNode.users[u].chan][i]
-                if rand_chan <= temp:
-                    BSNode.users[u].chan = i
-                    BSNode.users[u].stats.chanStateTraj.append(i)
-                    break
+    #for u in range(Parameters.userNum):
+    #    temp = 0
+    #    rand_chan = random.random()
+    #    for i in range(Parameters.chanStates):
+    #        if chan_mat[BSNode.users[u].chan][i] != 0:
+    #            temp += chan_mat[BSNode.users[u].chan][i]
+    #            if rand_chan <= temp:
+    #                BSNode.users[u].chan = i
+    #                BSNode.users[u].stats.chanStateTraj.append(i)
+    #                break
     #############Temporary###############
 
     if totalTime >= Parameters.totSimTime:

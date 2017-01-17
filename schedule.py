@@ -291,13 +291,7 @@ class socketHandler:
         for i in range(self.param.userNum):
             self.servSockets[i].bind((self.host,self.portNo[i]))
             self.servSockets[i].listen(5)
-            #n = 0
-            #while n < self.param.userNum:
-            #print n
-            #self.cliSockets[i] = self.servSockets[i].accept()[0]
-            #n += 1
-        self.cliSockets[0] = self.servSockets[0].accept()[0]
-        self.cliSockets[1] = self.servSockets[1].accept()[0]
+            self.cliSockets[i] = self.servSockets[i].accept()[0]
 
     def closeConnection(self):
         for i in range(self.param.userNum):
@@ -309,8 +303,6 @@ class socketHandler:
         while len(fileSize) < 7: # Assuming the longest file size has 7 digits.
             fileSize = '0' + fileSize
         layer = fileName[5]
-        #print fileName
-        #print fileSize + " " + str(layer)
         self.cliSockets[receivingUser].sendall(fileSize + " " + str(layer))
         self.cliSockets[receivingUser].sendall(fileName)
         self.cliSockets[receivingUser].sendall(str(File))

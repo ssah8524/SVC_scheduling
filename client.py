@@ -50,7 +50,7 @@ while True:
         else:
             dat = dat + s.recv(1)
     stop = time.time()
-    recRate = (8 * sys.getsizeof(dat))/(stop - start))/1000000
+    recRate = (8 * sys.getsizeof(dat))/(stop - start)/1000000
     channelTraj.append(recRate)
     print recRate
     #while size(recRate) < 7:

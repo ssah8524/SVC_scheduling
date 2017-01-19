@@ -267,12 +267,12 @@ class scheduler:
                         else:
                             segString = str(f % 30)
                         fileName = 'layer' + str(l) + '_' + segString + '.svc'
-                        newSize = sockets.transmitFile(fileName,i)
+                        sockets.transmitFile(fileName,i)
                         self.users[i].buffer[l] += 1
                         self.users[i].stats.receiverBuffer[l] += 1
                         self.users[i].nextToBeSent[l] = max(queue[i].buffer[l]) + 1
-                self.cliSockets[i].sendall("sfinished")
-                txRate = float(self.cliSockets[i].recv(5))
+                sockets.cliSockets[i].sendall("sfinished")
+                txRate = float(sockets.cliSockets[i].recv(5))
                 self.users[i].chan = self.users[i].findNextChanState(txRate)
         if time.time() - startTime < self.param.timeSlot:
             time.sleep(self.param.timeSlot - time.time() + startTime)

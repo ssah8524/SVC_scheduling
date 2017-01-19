@@ -11,6 +11,7 @@ s.connect((host, port))
 
 layerNo = 2
 round = [-1,-1]
+channelTraj = []
 while True:
 
     message = ''
@@ -38,7 +39,7 @@ while True:
     name = 'layer' + str(layer) + '_' + segString + '.svc'
     file = open('user_files/' + str(name),'wb')
     dat = ''
-    #start = time.time()
+    start = time.time()
     while len(dat) < size:
         if size - len(dat) > 100000:
             dat = dat + s.recv(100000)
@@ -48,13 +49,17 @@ while True:
             dat = dat + s.recv(100)
         else:
             dat = dat + s.recv(1)
-    #stop = time.time()
-    #recRate = str(size(dat)/(stop - start))
+    stop = time.time()
+    recRate = (8 * sys.getsizeof(dat))/(stop - start))/1000000
+    channelTraj.append(recRate)
+    print recRate
     #while size(recRate) < 7:
     #        recRate = '0' + recRate
     #    s.send(recRate)
 
     file.write(dat)
     file.close()
-
+channel = open('channel.csv','w')
+channel.write(channelTraj)
+channel.close()
 s.close()

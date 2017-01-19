@@ -277,17 +277,8 @@ class scheduler:
                 self.users[i].rateTrajectory.append(txRate)
                 self.users[i].chan = self.users[i].findNextChanState(txRate)
                 self.users[i].stats.chanStateTraj.append(self.users[i].chan)
-#print txRate
-                            #if time.time() - startTime > self.param.timeSlot:
-                            #breakLayer = True
-                            #breakUser = True
-                            #break
-                            #if breakLayer:
-                            #break
-                            #if breakUser:
-                            #break
-                            #if time.time() - startTime < self.param.timeSlot:
-                            #time.sleep(self.param.timeSlot - time.time() + startTime)
+        if time.time() - startTime < self.param.timeSlot:
+            time.sleep(self.param.timeSlot - time.time() + startTime)
 
 class fileBuffer:
     def __init__(self,parameters):
@@ -303,8 +294,8 @@ class socketHandler:
         self.portNo = [int(sys.argv[4]) + i for i in range(Parameters.userNum)]
         self.servSockets = [socket.socket(socket.AF_INET, socket.SOCK_STREAM) for i in range(Parameters.userNum)]
         self.cliSockets = [socket.socket(socket.AF_INET, socket.SOCK_STREAM) for i in range(Parameters.userNum)]
-        #self.host = socket.gethostname()
-        self.host = "192.168.12.1"
+        self.host = socket.gethostname()
+        #self.host = "192.168.12.1"
     def establishConnection(self): #Waits until all users have tuned in
         for i in range(self.param.userNum):
             self.servSockets[i].bind((self.host,self.portNo[i]))
@@ -322,6 +313,7 @@ class socketHandler:
         while len(fileSize) < 7: # Assuming the longest file size has 7 digits.
             fileSize = '0' + fileSize
         layer = fileName[5]
+        
         self.cliSockets[receivingUser].sendall(fileSize + " " + str(layer))
         self.cliSockets[receivingUser].sendall(fileName)
         self.cliSockets[receivingUser].sendall(str(File))

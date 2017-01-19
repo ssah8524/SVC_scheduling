@@ -336,11 +336,6 @@ Sockets = socketHandler(Parameters)
 
 Sockets.establishConnection()
 
-chan_mat = [[0 for i in range(Parameters.chanStates)] for j in range(Parameters.chanStates)]
-for i in range(Parameters.chanStates):
-    for j in range(Parameters.chanStates):
-        chan_mat[i][j] = float(channelMatrix[Parameters.chanStates * i + j])
-
 totalTime = 0
 stateTracker = [0 for i in range(Parameters.userNum)]
 while True:

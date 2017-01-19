@@ -271,7 +271,7 @@ class scheduler:
                         self.users[i].buffer[l] += 1
                         self.users[i].stats.receiverBuffer[l] += 1
                         self.users[i].nextToBeSent[l] = max(queue[i].buffer[l]) + 1
-                self.servSockets[i].sendall("sfinished")
+                self.cliSockets[i].sendall("sfinished")
                 txRate = float(self.cliSockets[i].recv(5))
                 self.users[i].chan = self.users[i].findNextChanState(txRate)
         if time.time() - startTime < self.param.timeSlot:

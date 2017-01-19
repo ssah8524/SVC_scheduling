@@ -31,7 +31,7 @@ while True:
         segString = str(segmentNo + round[layer]*30)
 
     name = 'layer' + str(layer) + '_' + segString + '.svc'
-    file = open('user1_files/' + str(name),'wb')
+    file = open('user_files/' + str(name),'wb')
     dat = ''
     #start = time.time()
     while len(dat) < size:

@@ -81,7 +81,6 @@ class user:
         self.costActive = 0
         self.costPassive = 0
         self.rateAccum = 0.0
-        self.rateTrajectory = []
         self.receivedSegments = [0 for i in range(parameters.numLayer)]
         self.stats = statistics(parameters)
     def findMeasures(self):
@@ -357,6 +356,3 @@ meanChannel = numpy.mean([BSNode.users[u].stats.averageRate() for u in range(Par
 meanRebuf = numpy.mean([BSNode.users[u].stats.rebuf for u in range(Parameters.userNum)])
 
 print meanLayerRatio, meanReward, meanRebuf, meanChannel
-chanTraj = open("channel_trajectory.csv",'w')
-chanTraj.write(str(BSNode.users[0].rateTrajectory))
-chanTraj.close()

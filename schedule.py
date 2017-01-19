@@ -363,5 +363,5 @@ meanRebuf = numpy.mean([BSNode.users[u].stats.rebuf for u in range(Parameters.us
 
 print meanLayerRatio, meanReward, meanRebuf, meanChannel
 chanTraj = open("channel_trajectory.csv",'w')
-chanTraj.write(BSNode.users[0].rateTrajectory)
+chanTraj.write(str(BSNode.users[0].rateTrajectory))
 chanTraj.close()

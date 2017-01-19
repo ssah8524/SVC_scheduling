@@ -259,7 +259,6 @@ class scheduler:
         startTime = time.time()
         for i in range(self.param.userNum):
             if activeVector[i] == 1:
-                totalSize = 0
                 startTimeforUser = time.time()
                 for l in range(self.param.numLayer):
                     for f in queue[i].buffer[l]:
@@ -268,15 +267,13 @@ class scheduler:
                         else:
                             segString = str(f % 30)
                         fileName = 'layer' + str(l) + '_' + segString + '.svc'
-                        newSize = sockets.transmitFile(fileName,i,totalSize)
+                        newSize = sockets.transmitFile(fileName,i)
                         self.users[i].buffer[l] += 1
                         self.users[i].stats.receiverBuffer[l] += 1
                         self.users[i].nextToBeSent[l] = max(queue[i].buffer[l]) + 1
-                txRate = float((8 * newSize)/(time.time() - startTimeforUser)) #in bps
-                txRate /= 1000000
-                self.users[i].rateTrajectory.append(txRate)
+                self.servSockets[i].sendall("sfinished")
+                txRate = float(self.cliSockets[i].recv(5))
                 self.users[i].chan = self.users[i].findNextChanState(txRate)
-                self.users[i].stats.chanStateTraj.append(self.users[i].chan)
         if time.time() - startTime < self.param.timeSlot:
             time.sleep(self.param.timeSlot - time.time() + startTime)
 
@@ -305,7 +302,7 @@ class socketHandler:
     def closeConnection(self):
         for i in range(self.param.userNum):
             self.servSockets[i].close
-    def transmitFile(self,fileName,receivingUser,totSize):
+    def transmitFile(self,fileName,receivingUser):
         f = open('service_files/' + fileName,'rb')
         File = f.read()
         totSize += sys.getsizeof(File)
@@ -317,7 +314,6 @@ class socketHandler:
         self.cliSockets[receivingUser].sendall(fileSize + " " + str(layer))
         self.cliSockets[receivingUser].sendall(fileName)
         self.cliSockets[receivingUser].sendall(str(File))
-        return totSize
 
 ### Main program starts here! ###
 

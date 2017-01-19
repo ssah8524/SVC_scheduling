@@ -20,6 +20,12 @@ while True:
 
     if message == "finished!":
         break
+    elif message == "sfinished":
+        while size(recRate) < 5:
+            recRate = '0' + recRate
+        s.sendall(recRate)
+        continue
+
     size = int(message.split(" ")[0])
     layer = int(message.split(" ")[1])
 
@@ -52,10 +58,7 @@ while True:
     stop = time.time()
     recRate = (8 * sys.getsizeof(dat))/(stop - start)/1000000
     channelTraj.append(recRate)
-    print recRate
-    #while size(recRate) < 7:
-    #        recRate = '0' + recRate
-    #    s.send(recRate)
+    recRate = str(recRate)
 
     file.write(dat)
     file.close()

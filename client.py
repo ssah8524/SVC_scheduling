@@ -14,9 +14,9 @@ round = [-1,-1]
 while True:
 
     message = ''
-    while len(name) < 9:
+    while len(message) < 9:
         message = message + s.recv(1)
-    
+
     if message == "finished!":
         break
     size = int(message.split(" ")[0])
@@ -25,6 +25,7 @@ while True:
     name = ''
     while len(name) < 13:
         name = name +  s.recv(1)
+
     segmentNo = 10*int(name[7]) + int(name[8])
     if segmentNo == 0:
         round[layer] += 1

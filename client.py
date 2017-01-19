@@ -60,6 +60,6 @@ while True:
     file.write(dat)
     file.close()
 channel = open('channel.csv','w')
-channel.write(channelTraj)
+channel.write(str(channelTraj))
 channel.close()
 s.close()

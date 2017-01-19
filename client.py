@@ -13,14 +13,18 @@ layerNo = 2
 round = [-1,-1]
 while True:
 
-    message = s.recv(9)
-    #print message
+    message = ''
+    while len(name) < 9:
+        message = message + s.recv(1)
+    
     if message == "finished!":
         break
     size = int(message.split(" ")[0])
     layer = int(message.split(" ")[1])
 
-    name = s.recv(13)
+    name = ''
+    while len(name) < 13:
+        name = name +  s.recv(1)
     segmentNo = 10*int(name[7]) + int(name[8])
     if segmentNo == 0:
         round[layer] += 1

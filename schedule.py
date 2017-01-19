@@ -305,7 +305,6 @@ class socketHandler:
     def transmitFile(self,fileName,receivingUser):
         f = open('service_files/' + fileName,'rb')
         File = f.read()
-        totSize += sys.getsizeof(File)
         fileSize = str(len(File))
         while len(fileSize) < 7: # Assuming the longest file size has 7 digits.
             fileSize = '0' + fileSize

@@ -5,7 +5,7 @@ import socket,sys,time
 s = socket.socket()
 #host = socket.gethostname()
 host = sys.argv[1]
-port = sys.argv[2]
+port = int(sys.argv[2])
 
 s.connect((host, port))
 
@@ -33,7 +33,7 @@ while True:
     name = 'layer' + str(layer) + '_' + segString + '.svc'
     file = open('user1_files/' + str(name),'wb')
     dat = ''
-    start = time.time()
+    #start = time.time()
     while len(dat) < size:
         if size - len(dat) > 100000:
             dat = dat + s.recv(100000)
@@ -43,12 +43,11 @@ while True:
             dat = dat + s.recv(100)
         else:
             dat = dat + s.recv(1)
-    stop = time.time()
-
-    recRate = str(size(dat)/(stop - start))
-    while size(recRate) < 7:
-        recRate = '0' + recRate
-    s.send(recRate)
+    #stop = time.time()
+    #recRate = str(size(dat)/(stop - start))
+    #while size(recRate) < 7:
+    #        recRate = '0' + recRate
+    #    s.send(recRate)
 
     file.write(dat)
     file.close()

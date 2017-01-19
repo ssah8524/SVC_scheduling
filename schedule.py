@@ -93,6 +93,14 @@ class user:
         self.costActive = self.param.dualActive[curState]
         self.costPassive = self.param.dualPassive[curState]
         return curState
+    def findNextChanState(self,txRate):
+        nextState = 0
+        for c in range(self.param.chanStates - 1):
+            if c < self.param.chanStates - 2 and txRate > 0.5 * (self.param.rateVector[c] + self.param.rateVector[c + 1]) and txRate < 0.5 * (self.param.rateVector[c + 1] + self.param.rateVector[c + 2]):
+                nextState = c + 1
+        if txRate > 0.5 * (self.param.rateVector[self.param.chanStates - 2] + self.param.rateVector[self.param.chanStates - 1]):
+            nextState = self.param.chanStates - 1
+        return nextState
 
 class scheduler:
     def __init__(self,mode,parameters):
@@ -250,6 +258,8 @@ class scheduler:
         startTime = time.time()
         for i in range(self.param.userNum):
             if activeVector[i] == 1:
+                totalSize = 0
+                startTimeforUser = time.time()
                 for l in range(self.param.numLayer):
                     for f in queue[i].buffer[l]:
                         if f % 30 < 10:
@@ -257,20 +267,25 @@ class scheduler:
                         else:
                             segString = str(f % 30)
                         fileName = 'layer' + str(l) + '_' + segString + '.svc'
-                        sockets.transmitFile(fileName,i)
+                        newSize = sockets.transmitFile(fileName,i,totalSize)
                         self.users[i].buffer[l] += 1
                         self.users[i].stats.receiverBuffer[l] += 1
                         self.users[i].nextToBeSent[l] = max(queue[i].buffer[l]) + 1
-                        if time.time() - startTime > self.param.timeSlot:
-                            breakLayer = True
-                            breakUser = True
-                            break
-                    if breakLayer:
-                        break
-            if breakUser:
-                break
-        if time.time() - startTime < self.param.timeSlot:
-            time.sleep(self.param.timeSlot - time.time() + startTime)
+                txRate = float((8 * newSize)/(time.time() - startTimeforUser)) #in bps
+                txRate /= 1000000
+                self.users[i].chan = self.users[i].findNextChanState(txRate)
+                self.users[i].stats.chanStateTraj.append(self.users[i].chan)
+#print txRate
+                            #if time.time() - startTime > self.param.timeSlot:
+                            #breakLayer = True
+                            #breakUser = True
+                            #break
+                            #if breakLayer:
+                            #break
+                            #if breakUser:
+                            #break
+                            #if time.time() - startTime < self.param.timeSlot:
+                            #time.sleep(self.param.timeSlot - time.time() + startTime)
 
 class fileBuffer:
     def __init__(self,parameters):
@@ -283,7 +298,7 @@ class fileBuffer:
 class socketHandler:
     def __init__(self,Parameters):
         self.param = Parameters
-        self.portNo = [10001 + i for i in range(Parameters.userNum)]
+        self.portNo = [int(sys.argv[4]) + i for i in range(Parameters.userNum)]
         self.servSockets = [socket.socket(socket.AF_INET, socket.SOCK_STREAM) for i in range(Parameters.userNum)]
         self.cliSockets = [socket.socket(socket.AF_INET, socket.SOCK_STREAM) for i in range(Parameters.userNum)]
         #self.host = socket.gethostname()
@@ -297,9 +312,10 @@ class socketHandler:
     def closeConnection(self):
         for i in range(self.param.userNum):
             self.servSockets[i].close
-    def transmitFile(self,fileName,receivingUser):
+    def transmitFile(self,fileName,receivingUser,totSize):
         f = open('service_files/' + fileName,'rb')
         File = f.read()
+        totSize += sys.getsizeof(File)
         fileSize = str(len(File))
         while len(fileSize) < 7: # Assuming the longest file size has 7 digits.
             fileSize = '0' + fileSize
@@ -307,33 +323,21 @@ class socketHandler:
         self.cliSockets[receivingUser].sendall(fileSize + " " + str(layer))
         self.cliSockets[receivingUser].sendall(fileName)
         self.cliSockets[receivingUser].sendall(str(File))
+        return totSize
+
+### Main program starts here! ###
 
 Parameters = param()
 Parameters.createVectors()
 BSNode = scheduler(sys.argv[3],Parameters)
 Sockets = socketHandler(Parameters)
+
 Sockets.establishConnection()
 
-# Measure SNR and update the channel state for each user
-# ....
-# For now, let's create a random channel
-#############Temporary###############
 chan_mat = [[0 for i in range(Parameters.chanStates)] for j in range(Parameters.chanStates)]
 for i in range(Parameters.chanStates):
     for j in range(Parameters.chanStates):
         chan_mat[i][j] = float(channelMatrix[Parameters.chanStates * i + j])
-
-#for u in range(Parameters.userNum):
-#    temp = 0
-#    rand_chan = random.random()
-#    for i in range(Parameters.chanStates):
-#        if chan_mat[BSNode.users[u].chan][i] != 0:
-#            temp += chan_mat[BSNode.users[u].chan][i]
-#            if rand_chan <= temp:
-#                BSNode.users[u].chan = i
-#                BSNode.users[u].stats.chanStateTraj.append(i)
-#                break
-#############Temporary###############
 
 totalTime = 0
 stateTracker = [0 for i in range(Parameters.userNum)]
@@ -356,20 +360,6 @@ while True:
     end = time.time()
     totalTime += end - start
 
-    # Measure SNR and update the channel state for each user
-    # ....
-    #############Temporary###############
-    #for u in range(Parameters.userNum):
-    #    temp = 0
-    #    rand_chan = random.random()
-    #    for i in range(Parameters.chanStates):
-    #        if chan_mat[BSNode.users[u].chan][i] != 0:
-    #            temp += chan_mat[BSNode.users[u].chan][i]
-    #            if rand_chan <= temp:
-    #                BSNode.users[u].chan = i
-    #                BSNode.users[u].stats.chanStateTraj.append(i)
-    #                break
-    #############Temporary###############
 
     if totalTime >= Parameters.totSimTime:
         break
@@ -383,3 +373,6 @@ meanChannel = numpy.mean([BSNode.users[u].stats.averageRate() for u in range(Par
 meanRebuf = numpy.mean([BSNode.users[u].stats.rebuf for u in range(Parameters.userNum)])
 
 print meanLayerRatio, meanReward, meanRebuf, meanChannel
+chanTraj = open("channel_trajectory.csv",w)
+chanTraj.write(BSNode.users[0].chanStateTraj)
+chanTraj.close()

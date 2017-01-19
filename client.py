@@ -21,9 +21,9 @@ while True:
     if message == "finished!":
         break
     elif message == "sfinished":
-        while size(recRate) < 5:
+        while len(recRate) < 5:
             recRate = '0' + recRate
-        s.sendall(recRate)
+        s.sendall(recRate[:5])
         continue
 
     size = int(message.split(" ")[0])

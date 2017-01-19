@@ -3,7 +3,7 @@
 import time, threading, random, socket, numpy, sys
 
 #argv = script name, slot duration, total simulation time, scheduling method
-channelMatrix = [0.9,0.1,0,0,0.1,0.8,0.1,0,0,0.1,0.8,0.1,0,0,0.1,0.9]
+#channelMatrix = [0.9,0.1,0,0,0.1,0.8,0.1,0,0,0.1,0.8,0.1,0,0,0.1,0.9]
 
 def find_minmax(a, func):
     return [i for (i, val) in enumerate(a) if func(val)]
@@ -81,6 +81,7 @@ class user:
         self.costActive = 0
         self.costPassive = 0
         self.rateAccum = 0.0
+        self.rateTrajectory = []
         self.receivedSegments = [0 for i in range(parameters.numLayer)]
         self.stats = statistics(parameters)
     def findMeasures(self):
@@ -273,6 +274,7 @@ class scheduler:
                         self.users[i].nextToBeSent[l] = max(queue[i].buffer[l]) + 1
                 txRate = float((8 * newSize)/(time.time() - startTimeforUser)) #in bps
                 txRate /= 1000000
+                self.users[i].rateTrajectory.append(txRate)
                 self.users[i].chan = self.users[i].findNextChanState(txRate)
                 self.users[i].stats.chanStateTraj.append(self.users[i].chan)
 #print txRate
@@ -374,5 +376,5 @@ meanRebuf = numpy.mean([BSNode.users[u].stats.rebuf for u in range(Parameters.us
 
 print meanLayerRatio, meanReward, meanRebuf, meanChannel
 chanTraj = open("channel_trajectory.csv",w)
-chanTraj.write(BSNode.users[0].chanStateTraj)
+chanTraj.write(BSNode.users[0].rateTrajectory)
 chanTraj.close()

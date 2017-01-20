@@ -1,6 +1,6 @@
 
 #GROUP=node1-1.sb1.orbit-lab.org,node1-2.sb1.orbit-lab.org,node2-1.sb1.orbit-lab.org
-GROUP=node1-1.sb4.orbit-lab.org,node1-2.sb4.orbit-lab.org,node1-3.sb4.orbit-lab.org,node1-4.sb4.orbit-lab.org,node1-5.sb4.orbit-lab.org
+GROUP=node1-1.sb4.orbit-lab.org,node1-2.sb4.orbit-lab.org,node1-3.sb4.orbit-lab.org,node1-4.sb4.orbit-lab.org,node1-5.sb4.orbit-lab.org,node1-6.sb4.orbit-lab.org,node1-7.sb4.orbit-lab.org,node1-8.sb4.orbit-lab.org,node1-9.sb4.orbit-lab.org
 
 if [[ -n "$GROUP" ]]  
 then  

@@ -1,6 +1,6 @@
 
-cd SVC_scheduling
-git pull
+#cd SVC_scheduling
+#git pull
 apt-get update
 apt-get -y install isc-dhcp-client
 modprobe ath5k

@@ -25,7 +25,7 @@ class statistics:
         self.discTimeActive = [0.0 for i in range(parameters.chanStates * (parameters.bufferLimit + 1)**parameters.numLayer)]
         self.discTimePassive = [0.0 for i in range(parameters.chanStates * (parameters.bufferLimit + 1)**parameters.numLayer)]
     def layerRatio(self): #For now this works for two layers only
-        if float(self.receiverBuffer[0] + self.receiverBuffer[1]) != 0
+        if float(self.receiverBuffer[0] + self.receiverBuffer[1]) != 0:
             return float(self.receiverBuffer[0])/float(self.receiverBuffer[0] + self.receiverBuffer[1])
         else:
             return 0
@@ -34,10 +34,10 @@ class statistics:
     def averageRate(self):
         return numpy.mean(self.chanStateTraj)
     def writeFiles(self,userIndex):
-        outputReward = open('reward_' + str(userIndex) + '.csv','a')
-        outputRebuf = open('rebuf_' + str(userIndex) + '.csv','a')
-        outputChanTraj = open('trajectory_' + str(userIndex) + '.csv','a')
-        outputLayerRatio = open('layer_ratio_' + str(userIndex) + '.csv','a')
+        outputReward = open('reward_' + str(userIndex) + '_' + sys.argv[5] + '.csv','a')
+        outputRebuf = open('rebuf_' + str(userIndex) + '_' + sys.argv[5] + '.csv','a')
+        outputChanTraj = open('trajectory_' + str(userIndex) + '_' + sys.argv[5] + '.csv','a')
+        outputLayerRatio = open('layer_ratio_' + str(userIndex) + '_' + sys.argv[5] + '.csv','a')
         outputReward.write(self.finalReward)
         outputRebuf.write(self.rebuf)
         temp = self.chanStateTraj

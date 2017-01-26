@@ -54,8 +54,8 @@ class statistics:
 
 class param:
     def __init__(self):
-        self.userNum = int(argv[1])
-        self.capacity = int(argv[2])
+        self.userNum = int(sys.argv[1])
+        self.capacity = int(sys.argv[2])
         self.timeSlot = float(sys.argv[3]) #duration of one scheduling slot
         self.totSimTime = int(sys.argv[4]) #duration of the entire simulation
         self.bufferLimit = 20

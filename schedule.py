@@ -25,18 +25,39 @@ class statistics:
         self.discTimeActive = [0.0 for i in range(parameters.chanStates * (parameters.bufferLimit + 1)**parameters.numLayer)]
         self.discTimePassive = [0.0 for i in range(parameters.chanStates * (parameters.bufferLimit + 1)**parameters.numLayer)]
     def layerRatio(self): #For now this works for two layers only
-        return float(self.receiverBuffer[0])/float(self.receiverBuffer[0] + self.receiverBuffer[1])
+        if float(self.receiverBuffer[0] + self.receiverBuffer[1]) != 0
+            return float(self.receiverBuffer[0])/float(self.receiverBuffer[0] + self.receiverBuffer[1])
+        else:
+            return 0
     def finalReward(self,parameters):
         return numpy.inner(self.discTimeActive,parameters.rewardVector) + numpy.inner(self.discTimePassive,parameters.rewardVector)
     def averageRate(self):
         return numpy.mean(self.chanStateTraj)
+    def writeFiles(self,userIndex):
+        outputReward = open('reward_' + str(userIndex) + '.csv','a')
+        outputRebuf = open('rebuf_' + str(userIndex) + '.csv','a')
+        outputChanTraj = open('trajectory_' + str(userIndex) + '.csv','a')
+        outputLayerRatio = open('layer_ratio_' + str(userIndex) + '.csv','a')
+        outputReward.write(self.finalReward)
+        outputRebuf.write(self.rebuf)
+        temp = self.chanStateTraj
+        if self.chanStateTraj[0] == '[':
+            temp.pop(0)     
+        if self.chanStateTraj[len(self.chanStateTraj)] == ']':
+            temp.pop(len(temp) - 1)
+        outputChanTraj.write(temp)
+        outputLayerRatio.write(self.receiverBuffer[0],self.receiverBuffer[1])
+        outputReward.close()
+        outputRebuf.close()
+        outputChanTraj.close()
+        outputLayerRatio.close()
 
 class param:
     def __init__(self):
-        self.capacity = 1
-        self.userNum = 8
-        self.timeSlot = float(sys.argv[1]) #duration of one scheduling slot
-        self.totSimTime = int(sys.argv[2]) #duration of the entire simulation
+        self.userNum = int(argv[1])
+        self.capacity = int(argv[2])
+        self.timeSlot = float(sys.argv[3]) #duration of one scheduling slot
+        self.totSimTime = int(sys.argv[4]) #duration of the entire simulation
         self.bufferLimit = 20
         self.chanStates = 4
         self.numLayer = 2
@@ -270,9 +291,11 @@ class scheduler:
                         self.users[i].buffer[l] += 1
                         self.users[i].stats.receiverBuffer[l] += 1
                         self.users[i].nextToBeSent[l] = max(queue[i].buffer[l]) + 1
-                sockets.cliSockets[i].sendall("sfinished")
-                txRate = float(sockets.cliSockets[i].recv(5))
-                self.users[i].chan = self.users[i].findNextChanState(txRate)
+            sockets.cliSockets[i].sendall("sfinished")
+            txRate = float(sockets.cliSockets[i].recv(5))
+            self.users[i].chan = self.users[i].findNextChanState(txRate)
+            self.users[i].chanStateTraj.append(self.users[i].chan)
+
         if time.time() - startTime < self.param.timeSlot:
             time.sleep(self.param.timeSlot - time.time() + startTime)
 
@@ -287,7 +310,7 @@ class fileBuffer:
 class socketHandler:
     def __init__(self,Parameters):
         self.param = Parameters
-        self.portNo = [int(sys.argv[4]) + i for i in range(Parameters.userNum)]
+        self.portNo = [int(sys.argv[6]) + i for i in range(Parameters.userNum)]
         self.servSockets = [socket.socket(socket.AF_INET, socket.SOCK_STREAM) for i in range(Parameters.userNum)]
         self.cliSockets = [socket.socket(socket.AF_INET, socket.SOCK_STREAM) for i in range(Parameters.userNum)]
         #self.host = socket.gethostname()
@@ -317,16 +340,20 @@ class socketHandler:
 
 Parameters = param()
 Parameters.createVectors()
-BSNode = scheduler(sys.argv[3],Parameters)
+BSNode = scheduler(sys.argv[5],Parameters)
 Sockets = socketHandler(Parameters)
 
 Sockets.establishConnection()
 
 totalTime = 0
 stateTracker = [0 for i in range(Parameters.userNum)]
+ticker = 0
 while True:
 
-    print 'elapsed time: ' + str(totalTime)
+    if totalTime > ticker * 10:
+        print 'elapsed time: ' + str(totalTime)
+        ticker += 1
+
     for i in range(Parameters.userNum):
         stateTracker[i] = BSNode.users[i].findMeasures()
 
@@ -343,7 +370,6 @@ while True:
     end = time.time()
     totalTime += end - start
 
-
     if totalTime >= Parameters.totSimTime:
         break
 for i in range(Parameters.userNum):
@@ -356,3 +382,7 @@ meanChannel = numpy.mean([BSNode.users[u].stats.averageRate() for u in range(Par
 meanRebuf = numpy.mean([BSNode.users[u].stats.rebuf for u in range(Parameters.userNum)])
 
 print meanLayerRatio, meanReward, meanRebuf, meanChannel
+
+for i in Parameters.userNum:
+    BSNode.users[i].stats.writeFiles(i+1)
+

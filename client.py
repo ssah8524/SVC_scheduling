@@ -12,6 +12,7 @@ s.connect((host, port))
 layerNo = 2
 round = [-1,-1]
 channelTraj = []
+recRate = '0'
 while True:
 
     message = ''
@@ -27,20 +28,21 @@ while True:
         continue
 
     size = int(message.split(" ")[0])
+    print size
     layer = int(message.split(" ")[1])
 
     name = ''
     while len(name) < 13:
         name = name +  s.recv(1)
 
-    segmentNo = 10*int(name[7]) + int(name[8])
+    segmentNo = 10 * int(name[7]) + int(name[8])
     if segmentNo == 0:
         round[layer] += 1
 
-    if segmentNo + round[layer]*30 < 10:
-        segString = '0' + str(segmentNo + round[layer]*30)
+    if segmentNo + round[layer] * 30 < 10:
+        segString = '0' + str(segmentNo + round[layer] * 30)
     else:
-        segString = str(segmentNo + round[layer]*30)
+        segString = str(segmentNo + round[layer] * 30)
 
     name = 'layer' + str(layer) + '_' + segString + '.svc'
     file = open('user_files/' + str(name),'wb')
@@ -56,7 +58,8 @@ while True:
         else:
             dat = dat + s.recv(1)
     stop = time.time()
-    recRate = (8 * sys.getsizeof(dat))/(stop - start)/1000000
+    recRate = int((8 * sys.getsizeof(dat))/(stop - start)/1000000)
+    print recRate
     channelTraj.append(recRate)
     recRate = str(recRate)
 

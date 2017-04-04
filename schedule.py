@@ -439,6 +439,6 @@ meanRebuf = numpy.mean([BSNode.users[u].stats.rebuf for u in range(Parameters.us
 
 print meanLayerRatio, meanReward, meanRebuf, meanChannel
 
-for i in Parameters.userNum:
+for i in range(Parameters.userNum):
     BSNode.users[i].stats.writeFiles(i+1)
 

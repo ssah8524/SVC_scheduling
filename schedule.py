@@ -63,6 +63,7 @@ class param:
         self.numLayer = 2
         self.preFetchThreshold = 2
         self.discount = 0.99
+        self.epsilon = 0.01
         self.rateVector = [1,2,6,12] #This needs to be determined by the channel shaping method.
         self.primal = [0.0 for i in range(self.chanStates * (self.bufferLimit + 1)**self.numLayer)]
         self.dualActive = [0.0 for i in range(self.chanStates * (self.bufferLimit + 1)**self.numLayer)]
@@ -95,13 +96,15 @@ class user:
         # For now let's assume that all users start from an initially empty buffer
         self.param = parameters
         self.buffer = [0 for i in range(parameters.numLayer)]
+        self.oldBuffer = [0 for i in range(parameters.numLayer)]
         self.nextToBeSent = [0 for l in range(parameters.numLayer)]
         self.chan = 0
-        self.tc = 1
+        self.tc = 100
         self.prim = 0
         self.costActive = 0
         self.costPassive = 0
         self.rateAccum = 0.0
+        self.bufTracker = 0.0
         self.receivedSegments = [0 for i in range(parameters.numLayer)]
         self.stats = statistics(parameters)
     def findMeasures(self):
@@ -178,6 +181,8 @@ class scheduler:
                         count = self.param.capacity
             if sum(active_v) != self.param.capacity:
                 print 'ERROR!'
+
+
         elif self.mode == 'maxrate':
             cur_rates = [0 for x in range(self.param.userNum)]
             for u in range(self.param.userNum):
@@ -201,6 +206,8 @@ class scheduler:
                 remain -= p
             if sum(active_v) != self.param.capacity:
                 print 'ERROR!'
+
+
         elif self.mode == 'pf':
             propRates = [0.0 for x in range(self.param.userNum)]
             for u in range(self.param.userNum):
@@ -228,17 +235,65 @@ class scheduler:
                 remain -= p
             if sum(active_v) != self.param.capacity:
                 print 'ERROR!'
+
+
+        elif self.mode == 'heuristic':
+            finalIndex = [0 for u in range(self.param.userNum)]
+
+            for u in range(self.param.userNum):
+                if self.users[u].bufTracker <= 0:
+                    finalIndex[u] = self.param.bufferLimit + self.users[u].chan
+                else:
+                    finalIndex[u] = self.param.bufferLimit - self.users[u].buffer[0]
+            remain = self.param.capacity
+            while remain > 0:
+                candidates = find_minmax(finalIndex, lambda x: x == max(finalIndex))
+                if len(candidates) <= remain:
+                    for i in range(len(candidates)):
+                        active_v[candidates[i]] = 1
+                        finalIndex[candidates[i]] = -1
+                    remain -= len(candidates)
+                else:
+                    # Systematically break ties.
+                    if finalIndex[candidates[0]] > self.param.bufferLimit:
+                        subs = [self.users[u].buffer[0] for u in candidates]
+                        newCandidates = find_minmax(subs, lambda x: x == min(subs))
+                    else:
+                        subs = [self.users[u].chan for u in candidates]
+                        newCandidates = find_minmax(subs, lambda x: x == max(subs))
+
+                    if len(newCandidates) <= remain:
+                        for i in range(len(newCandidates)):
+                            active_v[candidates[newCandidates[i]]] = 1
+                            finalIndex[candidates[newCandidates[i]]] = -1
+                        remain -= len(newCandidates)
+                    else:
+                        k = random.randint(0,len(newCandidates) - 1)
+                        if active_v[candidates[newCandidates[k]]] != 1:
+                            active_v[candidates[newCandidates[k]]] = 1
+                            candidates.pop(newCandidates[k])
+                            newCandidates.pop(k)
+                            remain -= 1
+            if sum(active_v) != self.param.capacity:
+                print 'ERROR!'
+
+
+
         for i in range(self.param.userNum):
             if active_v[i] == 1:
-                self.users[i].rateAccum = (1 - 1/self.users[i].tc)*self.users[i].rateAccum + (1/self.users[i].tc)*self.param.rateVector[self.users[i].chan]
+                self.users[i].rateAccum = (1 - 1.0/self.users[i].tc)*self.users[i].rateAccum + (1.0/self.users[i].tc)*self.param.rateVector[self.users[i].chan]
+                self.users[i].bufTracker += self.param.epsilon * (self.users[i].buffer[0] - self.users[i].oldBuffer[0])
             else:
-                self.users[i].rateAccum = (1 - 1/self.users[i].tc)*self.users[i].rateAccum
+                self.users[i].rateAccum = (1 - 1.0/self.users[i].tc)*self.users[i].rateAccum
+                self.users[i].bufTracker -= self.param.epsilon
+
         return active_v
 
     def NextSegmentsToSend(self,activeVector):
         sendBuffer = [fileBuffer(self.param) for u in range(self.param.userNum)]
 
         for u in range(self.param.userNum):
+            self.users[u].oldBuffer = self.users[u].buffer
             if activeVector[u] == 0:
                 if self.users[u].buffer[0] == 0: #Take re-buffering into account
                     self.users[u].stats.rebuf += self.param.timeSlot
@@ -348,6 +403,7 @@ Sockets.establishConnection()
 totalTime = 0
 stateTracker = [0 for i in range(Parameters.userNum)]
 ticker = 0
+
 while True:
 
     if totalTime > ticker * 10:

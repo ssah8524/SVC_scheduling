@@ -282,7 +282,7 @@ class scheduler:
         for i in range(self.param.userNum):
             if active_v[i] == 1:
                 self.users[i].rateAccum = (1 - 1.0/self.users[i].tc)*self.users[i].rateAccum + (1.0/self.users[i].tc)*self.param.rateVector[self.users[i].chan]
-                self.users[i].bufTracker += self.param.epsilon * (self.users[i].buffer[0] - self.users[i].oldBuffer[0])
+                self.users[i].bufTracker += self.param.epsilon * ((self.users[i].buffer[0] - self.users[i].oldBuffer[0]) + self.users[i].buffer[1] - self.users[i].oldBuffer[1])
             else:
                 self.users[i].rateAccum = (1 - 1.0/self.users[i].tc)*self.users[i].rateAccum
                 self.users[i].bufTracker -= self.param.epsilon

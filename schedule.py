@@ -349,7 +349,7 @@ class scheduler:
             sockets.cliSockets[i].sendall("sfinished")
             txRate = float(sockets.cliSockets[i].recv(5))
             self.users[i].chan = self.users[i].findNextChanState(txRate)
-            self.users[i].chanStateTraj.append(self.users[i].chan)
+            self.users[i].stats.chanStateTraj.append(self.users[i].chan)
 
         if time.time() - startTime < self.param.timeSlot:
             time.sleep(self.param.timeSlot - time.time() + startTime)

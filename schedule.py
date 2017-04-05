@@ -99,7 +99,7 @@ class user:
         self.oldBuffer = [0 for i in range(parameters.numLayer)]
         self.nextToBeSent = [0 for l in range(parameters.numLayer)]
         self.chan = 0
-        self.tc = 20
+        self.tc = 100
         self.prim = 0
         self.costActive = 0
         self.costPassive = 0

@@ -216,7 +216,6 @@ class scheduler:
                 else:
                     denom = self.users[u].rateAccum
                 propRates[u] = self.param.rateVector[self.users[u].chan] / denom
-            print propRates
             remain = self.param.capacity
             while remain > 0:
                 candidate = find_minmax(propRates, lambda x: x == max(propRates))

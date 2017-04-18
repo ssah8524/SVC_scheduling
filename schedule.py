@@ -24,6 +24,7 @@ class statistics:
         self.chanStateTraj = []
         self.discTimeActive = [0.0 for i in range(parameters.chanStates * (parameters.bufferLimit + 1)**parameters.numLayer)]
         self.discTimePassive = [0.0 for i in range(parameters.chanStates * (parameters.bufferLimit + 1)**parameters.numLayer)]
+        self.rebuffSlots = []
     def layerRatio(self): #For now this works for two layers only
         if float(self.receiverBuffer[0] + self.receiverBuffer[1]) != 0:
             return float(self.receiverBuffer[0])/float(self.receiverBuffer[0] + self.receiverBuffer[1])
@@ -38,8 +39,11 @@ class statistics:
         outputRebuf = open('rebuf_' + str(userIndex) + '_' + sys.argv[5] + '.csv','a')
         outputChanTraj = open('trajectory_' + str(userIndex) + '_' + sys.argv[5] + '.csv','a')
         outputLayerRatio = open('layer_ratio_' + str(userIndex) + '_' + sys.argv[5] + '.csv','a')
+        outputRebufSlots = open('rebuf_slots_' + str(userIndex) + '_' + sys.argv[5] + '.csv','a')
         outputReward.write(str(self.finalReward))
         outputRebuf.write(str(self.rebuf))
+        outputRebufSlots.write(str(self.rebufSlots))
+
         temp = self.chanStateTraj
         if self.chanStateTraj[0] == '[':
             temp.pop(0)     
@@ -51,6 +55,7 @@ class statistics:
         outputRebuf.close()
         outputChanTraj.close()
         outputLayerRatio.close()
+        outputRebufSlots.close()
 
 class param:
     def __init__(self):
@@ -273,6 +278,26 @@ class scheduler:
                             candidates.pop(newCandidates[k])
                             newCandidates.pop(k)
                             remain -= 1
+        elif self.mode == 'maxurgency':
+            curBase = [self.users[u].buffer[0] for x in range(self.param.userNum)]
+            remain = self.param.capacity
+            while remain > 0:
+            candidate = find_minmax(curBase, lambda x: x == min(curBase))
+            p = len(candidate)
+            if p > remain: #randomly choose between them
+                for i in range(remain):
+                    k = random.randint(0,len(candidate)-1)
+                    active_v[candidate[k]] = 1
+                    candidate.pop(k)
+            elif p < remain:
+                for i in range(p):
+                    active_v[candidate[i]] = 1
+                    curBase[candidate[i]] = self.param.bufferLimit + 1
+            else:
+                for i in range(p):
+                    active_v[candidate[i]] = 1
+            remain -= p
+
             if sum(active_v) != self.param.capacity:
                 print 'ERROR!'
 
@@ -295,6 +320,7 @@ class scheduler:
 
             if self.users[u].buffer[0] == 0: #Take re-buffering into account
                 self.users[u].stats.rebuf += self.param.timeSlot
+                self.users[u].stats.rebuffSlots.append(totalTime)
             else:
                 for l in range(self.param.numLayer):
                     self.users[u].buffer[l] = max(self.users[u].buffer[l] - 1,0)

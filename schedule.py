@@ -42,7 +42,7 @@ class statistics:
         outputRebufSlots = open('rebuf_slots_' + str(userIndex) + '_' + sys.argv[5] + '.csv','a')
         outputReward.write(str(self.finalReward))
         outputRebuf.write(str(self.rebuf))
-        outputRebufSlots.write(str(self.rebufSlots))
+        outputRebufSlots.write(str(self.rebuffSlots))
 
         temp = self.chanStateTraj
         if self.chanStateTraj[0] == '[':

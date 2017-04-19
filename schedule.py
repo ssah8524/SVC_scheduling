@@ -75,9 +75,9 @@ class param:
         self.dualPassive = [0.0 for i in range(self.chanStates * (self.bufferLimit + 1)**self.numLayer)]
         self.rewardVector = [0.0 for i in range(self.chanStates * (self.bufferLimit + 1)**self.numLayer)]
     def createVectors(self):
-        prim = open('x_1.csv','r')
-        cost0 = open('cost_0.csv','r')
-        cost1 = open('cost_1.csv','r')
+        prim = open('alg_files/x_1.csv','r')
+        cost0 = open('alg_files/cost_0.csv','r')
+        cost1 = open('alg_files/cost_1.csv','r')
         reward = open('reward.csv','r')
         Rprim = prim.read()
         Rcost0 = cost0.read()

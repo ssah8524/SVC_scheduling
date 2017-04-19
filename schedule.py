@@ -282,21 +282,21 @@ class scheduler:
             curBase = [self.users[u].buffer[0] for x in range(self.param.userNum)]
             remain = self.param.capacity
             while remain > 0:
-            candidate = find_minmax(curBase, lambda x: x == min(curBase))
-            p = len(candidate)
-            if p > remain: #randomly choose between them
-                for i in range(remain):
-                    k = random.randint(0,len(candidate)-1)
-                    active_v[candidate[k]] = 1
-                    candidate.pop(k)
-            elif p < remain:
-                for i in range(p):
-                    active_v[candidate[i]] = 1
-                    curBase[candidate[i]] = self.param.bufferLimit + 1
-            else:
-                for i in range(p):
-                    active_v[candidate[i]] = 1
-            remain -= p
+                candidate = find_minmax(curBase, lambda x: x == min(curBase))
+                p = len(candidate)
+                if p > remain: #randomly choose between them
+                    for i in range(remain):
+                        k = random.randint(0,len(candidate)-1)
+                        active_v[candidate[k]] = 1
+                        candidate.pop(k)
+                elif p < remain:
+                    for i in range(p):
+                        active_v[candidate[i]] = 1
+                        curBase[candidate[i]] = self.param.bufferLimit + 1
+                else:
+                    for i in range(p):
+                        active_v[candidate[i]] = 1
+                remain -= p
 
             if sum(active_v) != self.param.capacity:
                 print 'ERROR!'

@@ -24,6 +24,4 @@ if [[ $athdriver == *"AR5"* ]]; then
 fi
 
 ifconfig wlan0 up
-create_ap -n wlan0 svcdemo demo_main
-
-ifconfig ap0 192.168.0.100
+create_ap -n -g 192.168.0.100 wlan0 svcdemo demo_main

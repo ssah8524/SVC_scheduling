@@ -390,6 +390,7 @@ class socketHandler:
         self.host = "192.168.0.100"
     def establishConnection(self): #Waits until all users have tuned in
         for i in range(self.param.userNum):
+            self.servSockets[i].setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.servSockets[i].bind((self.host,self.portNo[i]))
             self.servSockets[i].listen(5)
             self.cliSockets[i] = self.servSockets[i].accept()[0]
@@ -467,7 +468,7 @@ meanReward = numpy.mean([BSNode.users[u].stats.finalReward(Parameters) for u in 
 meanChannel = numpy.mean([BSNode.users[u].stats.averageRate() for u in range(Parameters.userNum)])
 meanRebuf = numpy.mean([BSNode.users[u].stats.rebuf for u in range(Parameters.userNum)])
 
-print meanLayerRatio, meanReward, meanRebuf, meanChannel
+print meanReward, meanRebuf, meanRebuf/totalTime
 
 for i in range(Parameters.userNum):
     BSNode.users[i].stats.writeFiles(i+1)

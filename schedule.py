@@ -355,10 +355,10 @@ class scheduler:
             if activeVector[i] == 1:
                 for l in range(self.param.numLayer):
                     for f in queue[i].buffer[l]:
-                        if f % 30 < 10:
-                            segString = '0' + str(f % 30)
+                        if f % 20 < 10:
+                            segString = '0' + str(f % 20)
                         else:
-                            segString = str(f % 30)
+                            segString = str(f % 20)
                         fileName = 'layer' + str(l) + '_' + segString + '.svc'
                         sockets.transmitFile(fileName,i)
                         self.users[i].buffer[l] += 1

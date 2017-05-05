@@ -1,8 +1,3 @@
-
-apt-get update
-apt-get -y install isc-dhcp-client
-
-
 # Bring up ath9k interface as wlan0 if there is one
 # ath5k as second choice
 athdriver=$(lspci | grep "Atheros")

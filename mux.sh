@@ -1,6 +1,6 @@
 MUXPATH="/root/multiplex/SVC_layer_multiplexer/Multiplex"
 DECODERPATH="/root/bin/H264AVCDecoderLibTestStatic"
-FFMPEG="/usr/bin/avconv"                                                        
+FFMPEG="/usr/local/bin/ffmpeg"
 
 rm -f *.yuv
 rm -f *.mp4

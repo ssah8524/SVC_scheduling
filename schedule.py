@@ -387,21 +387,21 @@ class socketHandler:
             self.servSockets[i].listen(5)
             self.cliSockets[i] = self.servSockets[i].accept()[0]
 
-def closeConnection(self):
-    for i in range(self.param.userNum):
-        self.servSockets[i].close
+    def closeConnection(self):
+        for i in range(self.param.userNum):
+            self.servSockets[i].close
 
-def transmitFile(self,fileName,receivingUser):
-    f = open('service_files/' + fileName,'rb')
-    File = f.read()
-    fileSize = str(len(File))
-    while len(fileSize) < 7: # Assuming the longest file size has 7 digits.
-        fileSize = '0' + fileSize
-    layer = fileName[5]
+    def transmitFile(self,fileName,receivingUser):
+        f = open('service_files/' + fileName,'rb')
+        File = f.read()
+        fileSize = str(len(File))
+        while len(fileSize) < 7: # Assuming the longest file size has 7 digits.
+            fileSize = '0' + fileSize
+        layer = fileName[5]
 
-    self.cliSockets[receivingUser].sendall(fileSize + " " + str(layer))
-    self.cliSockets[receivingUser].sendall(fileName)
-    self.cliSockets[receivingUser].sendall(str(File))
+        self.cliSockets[receivingUser].sendall(fileSize + " " + str(layer))
+        self.cliSockets[receivingUser].sendall(fileName)
+        self.cliSockets[receivingUser].sendall(str(File))
 
 ### Main program starts here! ###
 

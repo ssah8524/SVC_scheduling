@@ -184,7 +184,7 @@ class scheduler:
                         for i in range(len(index)):
                             active_v[index[i]] = 1
                         count = self.param.capacity
-      
+
         elif self.mode == 'maxrate':
             cur_rates = [0 for x in range(self.param.userNum)]
             for u in range(self.param.userNum):
@@ -438,7 +438,7 @@ while True:
 #    for u in range(Parameters.userNum):
 #        print BSNode.users[u].buffer,BSNode.users[u].oldBuffer
 
-sendingQueue = BSNode.NextSegmentsToSend(scheduledUsers)
+    sendingQueue = BSNode.NextSegmentsToSend(scheduledUsers)
 
     BSNode.transmit(sendingQueue,Sockets,scheduledUsers)
 

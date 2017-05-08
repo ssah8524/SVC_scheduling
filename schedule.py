@@ -1,4 +1,4 @@
-## This file assumes a single class of users with a diagonal quality adaptation method with a pre-fetch threshold of 5 segments.
+## This file assumes a single class of users with a diagonal quality adaptation method.
 
 import time, threading, random, socket, numpy, sys
 
@@ -46,7 +46,7 @@ class statistics:
 
         temp = self.chanStateTraj
         if self.chanStateTraj[0] == '[':
-            temp.pop(0)     
+            temp.pop(0)
         if self.chanStateTraj[len(self.chanStateTraj) - 1] == ']':
             temp.pop(len(temp) - 1)
         outputChanTraj.write(str(temp))
@@ -66,7 +66,7 @@ class param:
         self.bufferLimit = 20
         self.chanStates = 4
         self.numLayer = 2
-        self.preFetchThreshold = 2
+        self.preFetchThreshold = int(sys.argv[5])
         self.discount = 0.99
         self.epsilon = 0.01
         self.rateVector = [1,2,6,12] #This needs to be determined by the channel shaping method.
@@ -213,14 +213,14 @@ class scheduler:
                 print 'ERROR!'
 
 
-        elif self.mode == 'pf':
-            propRates = [0.0 for x in range(self.param.userNum)]
-            for u in range(self.param.userNum):
-                if self.users[u].rateAccum == 0:
-                    denom = 0.01
+elif self.mode == 'pf':
+    propRates = [0.0 for x in range(self.param.userNum)]
+        for u in range(self.param.userNum):
+            if self.users[u].rateAccum == 0:
+                denom = 0.01
                 else:
                     denom = self.users[u].rateAccum
-                propRates[u] = self.param.rateVector[self.users[u].chan] / denom
+            propRates[u] = self.param.rateVector[self.users[u].chan] / denom
             remain = self.param.capacity
             while remain > 0:
                 candidate = find_minmax(propRates, lambda x: x == max(propRates))
@@ -238,8 +238,8 @@ class scheduler:
                     for i in range(p):
                         active_v[candidate[i]] = 1
                 remain -= p
-            if sum(active_v) != self.param.capacity:
-                print 'ERROR!'
+    if sum(active_v) != self.param.capacity:
+        print 'ERROR!'
 
         elif self.mode == 'heuristic':
             finalIndex = [0 for u in range(self.param.userNum)]
@@ -278,9 +278,9 @@ class scheduler:
                             candidates.pop(newCandidates[k])
                             newCandidates.pop(k)
                             remain -= 1
-        elif self.mode == 'maxurgency':
-            curBase = [self.users[u].buffer[0] for x in range(self.param.userNum)]
-            remain = self.param.capacity
+elif self.mode == 'maxurgency':
+    curBase = [self.users[u].buffer[0] for x in range(self.param.userNum)]
+        remain = self.param.capacity
             while remain > 0:
                 candidate = find_minmax(curBase, lambda x: x == min(curBase))
                 p = len(candidate)
@@ -298,8 +298,8 @@ class scheduler:
                         active_v[candidate[i]] = 1
                 remain -= p
 
-            if sum(active_v) != self.param.capacity:
-                print 'ERROR!'
+        if sum(active_v) != self.param.capacity:
+            print 'ERROR!'
 
         for i in range(self.param.userNum):
             if active_v[i] == 1:
@@ -308,8 +308,8 @@ class scheduler:
             else:
                 self.users[i].rateAccum = (1 - 1.0/self.users[i].tc)*self.users[i].rateAccum
                 self.users[i].bufTracker -= self.param.epsilon
-                #print self.users[i].bufTracker, self.users[i].buffer, self.users[i].oldBuffer
-        return active_v
+            #print self.users[i].bufTracker, self.users[i].buffer, self.users[i].oldBuffer
+return active_v
 
     def NextSegmentsToSend(self,activeVector):
         sendBuffer = [fileBuffer(self.param) for u in range(self.param.userNum)]
@@ -346,7 +346,7 @@ class scheduler:
                                 dif[k] = tempBuf[k] - tempBuf[k + 1]
                             break
                 sendBuffer[u].sortRequestedSegments()
-        return sendBuffer
+            return sendBuffer
     def transmit(self,queue,sockets,activeVector):
         breakUser = False
         breakLayer = False
@@ -355,10 +355,10 @@ class scheduler:
             if activeVector[i] == 1:
                 for l in range(self.param.numLayer):
                     for f in queue[i].buffer[l]:
-                        if f % 30 < 10:
-                            segString = '0' + str(f % 30)
+                        if f % 20 < 10:
+                            segString = '0' + str(f % 20)
                         else:
-                            segString = str(f % 30)
+                            segString = str(f % 20)
                         fileName = 'layer' + str(l) + '_' + segString + '.svc'
                         sockets.transmitFile(fileName,i)
                         self.users[i].buffer[l] += 1
@@ -383,20 +383,21 @@ class fileBuffer:
 class socketHandler:
     def __init__(self,Parameters):
         self.param = Parameters
-        self.portNo = [int(sys.argv[6]) + i for i in range(Parameters.userNum)]
+        self.portNo = [int(sys.argv[7]) + i for i in range(Parameters.userNum)]
         self.servSockets = [socket.socket(socket.AF_INET, socket.SOCK_STREAM) for i in range(Parameters.userNum)]
         self.cliSockets = [socket.socket(socket.AF_INET, socket.SOCK_STREAM) for i in range(Parameters.userNum)]
         #self.host = socket.gethostname()
-        self.host = "192.168.12.1"
+        self.host = "192.168.0.100"
     def establishConnection(self): #Waits until all users have tuned in
         for i in range(self.param.userNum):
+            self.servSockets[i].setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.servSockets[i].bind((self.host,self.portNo[i]))
             self.servSockets[i].listen(5)
             self.cliSockets[i] = self.servSockets[i].accept()[0]
 
-    def closeConnection(self):
-        for i in range(self.param.userNum):
-            self.servSockets[i].close
+def closeConnection(self):
+    for i in range(self.param.userNum):
+        self.servSockets[i].close
     def transmitFile(self,fileName,receivingUser):
         f = open('service_files/' + fileName,'rb')
         File = f.read()
@@ -404,7 +405,7 @@ class socketHandler:
         while len(fileSize) < 7: # Assuming the longest file size has 7 digits.
             fileSize = '0' + fileSize
         layer = fileName[5]
-        
+
         self.cliSockets[receivingUser].sendall(fileSize + " " + str(layer))
         self.cliSockets[receivingUser].sendall(fileName)
         self.cliSockets[receivingUser].sendall(str(File))
@@ -413,7 +414,7 @@ class socketHandler:
 
 Parameters = param()
 Parameters.createVectors()
-BSNode = scheduler(sys.argv[5],Parameters)
+BSNode = scheduler(sys.argv[6],Parameters)
 Sockets = socketHandler(Parameters)
 
 Sockets.establishConnection()
@@ -424,8 +425,8 @@ ticker = 0
 
 while True:
 
-#for i in range(Parameters.userNum):
-#print BSNode.users[i].chan
+    #for i in range(Parameters.userNum):
+    #print BSNode.users[i].chan
 
     if totalTime > ticker * 10:
         print 'elapsed time: ' + str(totalTime)
@@ -445,13 +446,13 @@ while True:
 #    for u in range(Parameters.userNum):
 #        print BSNode.users[u].buffer,BSNode.users[u].oldBuffer
 
-    sendingQueue = BSNode.NextSegmentsToSend(scheduledUsers)
+sendingQueue = BSNode.NextSegmentsToSend(scheduledUsers)
 
     BSNode.transmit(sendingQueue,Sockets,scheduledUsers)
 
-#for u in range(Parameters.userNum):
-#        print BSNode.users[u].buffer,BSNode.users[u].oldBuffer
-#    print '=============================='
+    #for u in range(Parameters.userNum):
+    #        print BSNode.users[u].buffer,BSNode.users[u].oldBuffer
+    #    print '=============================='
 
     end = time.time()
     totalTime += end - start
@@ -467,8 +468,7 @@ meanReward = numpy.mean([BSNode.users[u].stats.finalReward(Parameters) for u in 
 meanChannel = numpy.mean([BSNode.users[u].stats.averageRate() for u in range(Parameters.userNum)])
 meanRebuf = numpy.mean([BSNode.users[u].stats.rebuf for u in range(Parameters.userNum)])
 
-print meanLayerRatio, meanReward, meanRebuf, meanChannel
+print meanReward, meanRebuf, meanRebuf/totalTime
 
 for i in range(Parameters.userNum):
     BSNode.users[i].stats.writeFiles(i+1)
-

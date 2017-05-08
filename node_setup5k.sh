@@ -1,9 +1,25 @@
-cd SVC_scheduling
-git pull
-apt-get update
-apt-get -y install isc-dhcp-client
+# Bring up ath9k interface as wlan0 if there is one
+# ath5k as second choice
+athdriver=$(lspci | grep "Atheros")
+if [[ $athdriver == *"AR9"* ]]; then
+modprobe ath9k
+sleep 1
+fi
+
+athdriver=$(lspci | grep "Atheros")
+if [[ $athdriver == *"AR5"* ]]; then
 modprobe ath5k
+sleep 1
+fi
+
 ifconfig wlan0 up
-wpa_passphrase node1-1 demo_main > wpa.conf
+
+# Kill wpa_supplicant if it's already running
+# Otherwise, you will keep getting disconnected
+# as the two processes compete
+killall wpa_supplicant
+wpa_passphrase svcdemo demo_main > wpa.conf
 wpa_supplicant -iwlan0 -cwpa.conf -B
-dhclient wlan0
+
+num=$(hostname -s | cut -f2 -d'-')
+ifconfig wlan0 192.168.0.$num

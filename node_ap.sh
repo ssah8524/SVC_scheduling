@@ -1,12 +1,16 @@
-## For server side
-cd SVC_scheduling
-git pull
-git clone https://github.com/oblique/create_ap.git
-cd create_ap
-make install
+# Bring up ath9k interface as wlan0 if there is one
+# ath5k as second choice
+athdriver=$(lspci | grep "Atheros")
+if [[ $athdriver == *"AR9"* ]]; then
+modprobe ath9k
+sleep 1
+fi
 
-apt-get update
-apt-get -y install isc-dhcp-client hostapd dnsmasq
+athdriver=$(lspci | grep "Atheros")
+if [[ $athdriver == *"AR5"* ]]; then
 modprobe ath5k
+sleep 1
+fi
+
 ifconfig wlan0 up
-create_ap -n wlan0 node1-1 demo_main
+create_ap --daemon -n -g 192.168.0.100 wlan0 svcdemo demo_main

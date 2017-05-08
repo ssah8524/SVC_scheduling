@@ -184,10 +184,7 @@ class scheduler:
                         for i in range(len(index)):
                             active_v[index[i]] = 1
                         count = self.param.capacity
-            if sum(active_v) != self.param.capacity:
-                print 'ERROR!'
-
-
+      
         elif self.mode == 'maxrate':
             cur_rates = [0 for x in range(self.param.userNum)]
             for u in range(self.param.userNum):
@@ -209,18 +206,15 @@ class scheduler:
                     for i in range(p):
                         active_v[candidate[i]] = 1
                 remain -= p
-            if sum(active_v) != self.param.capacity:
-                print 'ERROR!'
 
-
-elif self.mode == 'pf':
-    propRates = [0.0 for x in range(self.param.userNum)]
-        for u in range(self.param.userNum):
-            if self.users[u].rateAccum == 0:
-                denom = 0.01
+        elif self.mode == 'pf':
+            propRates = [0.0 for x in range(self.param.userNum)]
+            for u in range(self.param.userNum):
+                if self.users[u].rateAccum == 0:
+                    denom = 0.01
                 else:
                     denom = self.users[u].rateAccum
-            propRates[u] = self.param.rateVector[self.users[u].chan] / denom
+                propRates[u] = self.param.rateVector[self.users[u].chan] / denom
             remain = self.param.capacity
             while remain > 0:
                 candidate = find_minmax(propRates, lambda x: x == max(propRates))
@@ -238,8 +232,6 @@ elif self.mode == 'pf':
                     for i in range(p):
                         active_v[candidate[i]] = 1
                 remain -= p
-    if sum(active_v) != self.param.capacity:
-        print 'ERROR!'
 
         elif self.mode == 'heuristic':
             finalIndex = [0 for u in range(self.param.userNum)]
@@ -278,9 +270,9 @@ elif self.mode == 'pf':
                             candidates.pop(newCandidates[k])
                             newCandidates.pop(k)
                             remain -= 1
-elif self.mode == 'maxurgency':
-    curBase = [self.users[u].buffer[0] for x in range(self.param.userNum)]
-        remain = self.param.capacity
+        elif self.mode == 'maxurgency':
+            curBase = [self.users[u].buffer[0] for x in range(self.param.userNum)]
+            remain = self.param.capacity
             while remain > 0:
                 candidate = find_minmax(curBase, lambda x: x == min(curBase))
                 p = len(candidate)
@@ -309,7 +301,7 @@ elif self.mode == 'maxurgency':
                 self.users[i].rateAccum = (1 - 1.0/self.users[i].tc)*self.users[i].rateAccum
                 self.users[i].bufTracker -= self.param.epsilon
             #print self.users[i].bufTracker, self.users[i].buffer, self.users[i].oldBuffer
-return active_v
+        return active_v
 
     def NextSegmentsToSend(self,activeVector):
         sendBuffer = [fileBuffer(self.param) for u in range(self.param.userNum)]

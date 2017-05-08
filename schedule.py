@@ -390,17 +390,18 @@ class socketHandler:
 def closeConnection(self):
     for i in range(self.param.userNum):
         self.servSockets[i].close
-    def transmitFile(self,fileName,receivingUser):
-        f = open('service_files/' + fileName,'rb')
-        File = f.read()
-        fileSize = str(len(File))
-        while len(fileSize) < 7: # Assuming the longest file size has 7 digits.
-            fileSize = '0' + fileSize
-        layer = fileName[5]
 
-        self.cliSockets[receivingUser].sendall(fileSize + " " + str(layer))
-        self.cliSockets[receivingUser].sendall(fileName)
-        self.cliSockets[receivingUser].sendall(str(File))
+def transmitFile(self,fileName,receivingUser):
+    f = open('service_files/' + fileName,'rb')
+    File = f.read()
+    fileSize = str(len(File))
+    while len(fileSize) < 7: # Assuming the longest file size has 7 digits.
+        fileSize = '0' + fileSize
+    layer = fileName[5]
+
+    self.cliSockets[receivingUser].sendall(fileSize + " " + str(layer))
+    self.cliSockets[receivingUser].sendall(fileName)
+    self.cliSockets[receivingUser].sendall(str(File))
 
 ### Main program starts here! ###
 
@@ -439,7 +440,6 @@ while True:
 #        print BSNode.users[u].buffer,BSNode.users[u].oldBuffer
 
     sendingQueue = BSNode.NextSegmentsToSend(scheduledUsers)
-
     BSNode.transmit(sendingQueue,Sockets,scheduledUsers)
 
     #for u in range(Parameters.userNum):

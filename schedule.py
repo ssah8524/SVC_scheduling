@@ -22,16 +22,12 @@ class statistics:
         self.receiverBuffer = [0 for i in range(parameters.numLayer)]
         self.rebuf = 0
         self.chanStateTraj = []
-        self.discTimeActive = [0.0 for i in range(parameters.chanStates * (parameters.bufferLimit + 1)**parameters.numLayer)]
-        self.discTimePassive = [0.0 for i in range(parameters.chanStates * (parameters.bufferLimit + 1)**parameters.numLayer)]
         self.rebuffSlots = []
     def layerRatio(self): #For now this works for two layers only
         if float(self.receiverBuffer[0] + self.receiverBuffer[1]) != 0:
             return float(self.receiverBuffer[0])/float(self.receiverBuffer[0] + self.receiverBuffer[1])
         else:
             return 0
-    def finalReward(self,parameters):
-        return numpy.inner(self.discTimeActive,parameters.rewardVector) + numpy.inner(self.discTimePassive,parameters.rewardVector)
     def averageRate(self):
         return numpy.mean(self.chanStateTraj)
     def writeFiles(self,userIndex):
@@ -40,7 +36,7 @@ class statistics:
         outputChanTraj = open('trajectory_' + str(userIndex) + '_' + sys.argv[5] + '.csv','a')
         outputLayerRatio = open('layer_ratio_' + str(userIndex) + '_' + sys.argv[5] + '.csv','a')
         outputRebufSlots = open('rebuf_slots_' + str(userIndex) + '_' + sys.argv[5] + '.csv','a')
-        outputReward.write(str(self.finalReward))
+        #outputReward.write(str(self.finalReward))
         outputRebuf.write(str(self.rebuf))
         outputRebufSlots.write(str(self.rebuffSlots))
 
@@ -69,16 +65,6 @@ class param:
         self.preFetchThreshold = 2
         self.discount = 0.99
         self.epsilon = 0.01
-        self.primal = [0.0 for i in range(self.chanStates * (self.bufferLimit + 1)**self.numLayer)]
-        self.dualActive = [0.0 for i in range(self.chanStates * (self.bufferLimit + 1)**self.numLayer)]
-        self.dualPassive = [0.0 for i in range(self.chanStates * (self.bufferLimit + 1)**self.numLayer)]
-        self.rewardVector = [0.0 for i in range(self.chanStates * (self.bufferLimit + 1)**self.numLayer)]
-    def createVectors(self):
-        reward = open('reward.csv','r')
-        Reward = reward.read()
-        Reward = Reward.split("\n")
-        for i in range(self.chanStates * (self.bufferLimit + 1)**self.numLayer):
-            self.rewardVector[i] = float(Reward[i])
 
 class user:
     def __init__(self,parameters):
@@ -93,13 +79,6 @@ class user:
         self.bufTracker = 0.0
         self.receivedSegments = [0 for i in range(parameters.numLayer)]
         self.stats = statistics(parameters)
-    def findMeasures(self):
-        bufState = 0
-        maxState = (self.param.bufferLimit + 1) ** self.param.numLayer
-        for i in range(self.param.numLayer):
-            bufState += (self.buffer[self.param.numLayer - i - 1]) * (self.param.bufferLimit + 1) ** i
-        curState = self.chan * maxState + bufState
-        return curState
 
 class scheduler:
     def __init__(self,mode,parameters):
@@ -130,10 +109,6 @@ class scheduler:
                     for i in range(p):
                         active_v[candidate[i]] = 1
                 remain -= p
-            if sum(active_v) != self.param.capacity:
-                print 'ERROR!'
-
-
         elif self.mode == 'pf':
             propRates = [0.0 for x in range(self.param.userNum)]
             for u in range(self.param.userNum):
@@ -159,9 +134,6 @@ class scheduler:
                     for i in range(p):
                         active_v[candidate[i]] = 1
                 remain -= p
-            if sum(active_v) != self.param.capacity:
-                print 'ERROR!'
-
         elif self.mode == 'heuristic':
             finalIndex = [0 for u in range(self.param.userNum)]
 
@@ -229,7 +201,6 @@ class scheduler:
             else:
                 self.users[i].rateAccum = (1 - 1.0/self.users[i].tc)*self.users[i].rateAccum
                 self.users[i].bufTracker -= self.param.epsilon
-                #print self.users[i].bufTracker, self.users[i].buffer, self.users[i].oldBuffer
         return active_v
 
     def NextSegmentsToSend(self,activeVector):
@@ -307,8 +278,8 @@ class socketHandler:
         self.portNo = [int(sys.argv[6]) + i for i in range(Parameters.userNum)]
         self.servSockets = [socket.socket(socket.AF_INET, socket.SOCK_STREAM) for i in range(Parameters.userNum)]
         self.cliSockets = [socket.socket(socket.AF_INET, socket.SOCK_STREAM) for i in range(Parameters.userNum)]
-        #self.host = socket.gethostname()
-        self.host = "192.168.0.100"
+        self.host = socket.gethostname()
+        #self.host = "192.168.0.100"
     def establishConnection(self): #Waits until all users have tuned in
         for i in range(self.param.userNum):
             self.servSockets[i].setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -334,7 +305,7 @@ class socketHandler:
 ### Main program starts here! ###
 
 Parameters = param()
-Parameters.createVectors()
+#Parameters.createVectors()
 BSNode = scheduler(sys.argv[5],Parameters)
 Sockets = socketHandler(Parameters)
 
@@ -355,11 +326,10 @@ while True:
 
     start = time.time()
     scheduledUsers = BSNode.schedule()
-    for i in range(Parameters.userNum):
-        if scheduledUsers[i] == 1:
-            BSNode.users[i].stats.discTimeActive[stateTracker[i]] += Parameters.discount**totalTime
-        else:
-            BSNode.users[i].stats.discTimePassive[stateTracker[i]] += Parameters.discount**totalTime
+
+### Reward function must come here
+
+##################################
 
 #    for u in range(Parameters.userNum):
 #        print BSNode.users[u].buffer,BSNode.users[u].oldBuffer
@@ -382,11 +352,10 @@ for i in range(Parameters.userNum):
 Sockets.closeConnection()
 
 meanLayerRatio = numpy.mean([BSNode.users[u].stats.layerRatio() for u in range(Parameters.userNum)])
-meanReward = numpy.mean([BSNode.users[u].stats.finalReward(Parameters) for u in range(Parameters.userNum)])
 meanChannel = numpy.mean([BSNode.users[u].stats.averageRate() for u in range(Parameters.userNum)])
 meanRebuf = numpy.mean([BSNode.users[u].stats.rebuf for u in range(Parameters.userNum)])
 
-print meanReward, meanRebuf, meanRebuf/totalTime
+print meanRebuf, meanRebuf/totalTime
 
 for i in range(Parameters.userNum):
     BSNode.users[i].stats.writeFiles(i+1)

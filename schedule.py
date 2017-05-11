@@ -69,31 +69,15 @@ class param:
         self.preFetchThreshold = 2
         self.discount = 0.99
         self.epsilon = 0.01
-        self.rateVector = [1,2,6,12] #This needs to be determined by the channel shaping method.
         self.primal = [0.0 for i in range(self.chanStates * (self.bufferLimit + 1)**self.numLayer)]
         self.dualActive = [0.0 for i in range(self.chanStates * (self.bufferLimit + 1)**self.numLayer)]
         self.dualPassive = [0.0 for i in range(self.chanStates * (self.bufferLimit + 1)**self.numLayer)]
         self.rewardVector = [0.0 for i in range(self.chanStates * (self.bufferLimit + 1)**self.numLayer)]
     def createVectors(self):
-        prim = open('alg_files/x_1.csv','r')
-        cost0 = open('alg_files/cost_0.csv','r')
-        cost1 = open('alg_files/cost_1.csv','r')
         reward = open('reward.csv','r')
-        Rprim = prim.read()
-        Rcost0 = cost0.read()
-        Rcost1 = cost1.read()
         Reward = reward.read()
-        prim.close()
-        cost0.close()
-        cost1.close()
-        Rprim = Rprim.split("\n")
-        Rcost0 = Rcost0.split("\n")
-        Rcost1 = Rcost1.split("\n")
         Reward = Reward.split("\n")
         for i in range(self.chanStates * (self.bufferLimit + 1)**self.numLayer):
-            self.primal[i] = float(Rprim[i])
-            self.dualActive[i] = float(Rcost1[i])
-            self.dualPassive[i] = float(Rcost0[i])
             self.rewardVector[i] = float(Reward[i])
 
 class user:
@@ -105,9 +89,6 @@ class user:
         self.nextToBeSent = [0 for l in range(parameters.numLayer)]
         self.chan = 0
         self.tc = 100
-        self.prim = 0
-        self.costActive = 0
-        self.costPassive = 0
         self.rateAccum = 0.0
         self.bufTracker = 0.0
         self.receivedSegments = [0 for i in range(parameters.numLayer)]
@@ -118,18 +99,7 @@ class user:
         for i in range(self.param.numLayer):
             bufState += (self.buffer[self.param.numLayer - i - 1]) * (self.param.bufferLimit + 1) ** i
         curState = self.chan * maxState + bufState
-        self.prim = self.param.primal[curState]
-        self.costActive = self.param.dualActive[curState]
-        self.costPassive = self.param.dualPassive[curState]
         return curState
-    def findNextChanState(self,txRate):
-        nextState = 0
-        for c in range(self.param.chanStates - 1):
-            if c < self.param.chanStates - 2 and txRate > 0.5 * (self.param.rateVector[c] + self.param.rateVector[c + 1]) and txRate < 0.5 * (self.param.rateVector[c + 1] + self.param.rateVector[c + 2]):
-                nextState = c + 1
-        if txRate > 0.5 * (self.param.rateVector[self.param.chanStates - 2] + self.param.rateVector[self.param.chanStates - 1]):
-            nextState = self.param.chanStates - 1
-        return nextState
 
 class scheduler:
     def __init__(self,mode,parameters):
@@ -138,60 +108,11 @@ class scheduler:
         self.mode = mode
     def schedule(self):
         active_v = [0 for x in range(self.param.userNum)]
-        if self.mode == 'optimal':
-            valid_p = [x for x in range(self.param.userNum) if self.users[x].prim > 0]
-            invalid = [x for x in range(self.param.userNum) if self.users[x].prim == 0]
-            dualActive = [self.users[x].costActive for x in range(self.param.userNum)]
-            dualPassive = [self.users[x].costPassive for x in range(self.param.userNum)]
 
-            remain = self.param.capacity - len(valid_p)
-            if remain == 0: ##For the case where the primal step is sufficient
-                for i in valid_p:
-                    active_v[i] = 1
-            elif remain > 0:
-                dual = dualActive
-                for i in valid_p:
-                    active_v[i] = 1
-                    dual[i] = 10000000
-                while remain > 0:
-                    a = find_minmax(dual, lambda x: x == min(dual))
-                    ind = [i for i in a if active_v[i] != 1]
-                    if len(ind) <= remain:
-                        for i in range(len(ind)):
-                            dual[ind[i]] = 100000000
-                            active_v[ind[i]] = 1
-                            remain -= 1
-                    else: #If correct, program will enter this part only once at the end
-                        index = tie_breaker(self.users,ind,remain)
-                        for i in range(len(index)):
-                            active_v[index[i]] = 1
-                        remain = 0
-            else:
-                dual = dualPassive
-                for i in invalid:
-                    dual[i] = -10000000
-                count = 0
-                while count < self.param.capacity:
-                    a = find_minmax(dual, lambda x: x == max(dual))
-                    ind = [i for i in a if active_v[i] != 1]
-                    if len(ind) <= self.param.capacity - count:
-                        for i in range(len(ind)):
-                            dual[ind[i]] = -100000000
-                            active_v[ind[i]] = 1
-                            count += 1
-                    else: #If correct, program will enter this part only once at the end
-                        index = tie_breaker(self.users,ind,self.param.capacity - count)
-                        for i in range(len(index)):
-                            active_v[index[i]] = 1
-                        count = self.param.capacity
-            if sum(active_v) != self.param.capacity:
-                print 'ERROR!'
-
-
-        elif self.mode == 'maxrate':
+        if self.mode == 'maxrate':
             cur_rates = [0 for x in range(self.param.userNum)]
             for u in range(self.param.userNum):
-                cur_rates[u] = self.param.rateVector[self.users[u].chan]
+                cur_rates[u] = self.users[u].chan
             remain = self.param.capacity
             while remain > 0:
                 candidate = find_minmax(cur_rates, lambda x: x == max(cur_rates))
@@ -220,7 +141,7 @@ class scheduler:
                     denom = 0.01
                 else:
                     denom = self.users[u].rateAccum
-                propRates[u] = self.param.rateVector[self.users[u].chan] / denom
+                propRates[u] = self.users[u].chan / denom
             remain = self.param.capacity
             while remain > 0:
                 candidate = find_minmax(propRates, lambda x: x == max(propRates))
@@ -303,7 +224,7 @@ class scheduler:
 
         for i in range(self.param.userNum):
             if active_v[i] == 1:
-                self.users[i].rateAccum = (1 - 1.0/self.users[i].tc)*self.users[i].rateAccum + (1.0/self.users[i].tc)*self.param.rateVector[self.users[i].chan]
+                self.users[i].rateAccum = (1 - 1.0/self.users[i].tc)*self.users[i].rateAccum + (1.0/self.users[i].tc)*self.users[i].chan
                 self.users[i].bufTracker += self.param.epsilon * ((self.users[i].buffer[0] - self.users[i].oldBuffer[0]) + self.users[i].buffer[1] - self.users[i].oldBuffer[1])
             else:
                 self.users[i].rateAccum = (1 - 1.0/self.users[i].tc)*self.users[i].rateAccum
@@ -327,14 +248,14 @@ class scheduler:
 
             if activeVector[u] == 1:
                 headOfLine = [self.users[u].nextToBeSent[l] for l in range(self.param.numLayer)]
-                res = self.param.rateVector[self.users[u].chan] #This needs more effort
+                res = self.users[u].chan #This needs more effort
                 tempBuf = [self.users[u].buffer[l] for l in range(self.param.numLayer)]
 
                 dif = [0 for i in range(self.param.numLayer)]
                 dif[self.param.numLayer - 1] = self.param.preFetchThreshold - 1
                 for k in range(self.param.numLayer - 1):
                     dif[k] = tempBuf[k] - tempBuf[k + 1]
-                for s in range(res):
+                for s in range(3):  # Assume highest rate TODO: fixme
                     for r in range(self.param.numLayer):
                         tmp = tempBuf[r]
                         if dif[r] < self.param.preFetchThreshold and tmp < self.param.bufferLimit:
@@ -366,7 +287,7 @@ class scheduler:
                         self.users[i].nextToBeSent[l] = max(queue[i].buffer[l]) + 1
             sockets.cliSockets[i].sendall("sfinished")
             txRate = float(sockets.cliSockets[i].recv(5))
-            self.users[i].chan = self.users[i].findNextChanState(txRate)
+            self.users[i].chan = txRate
             self.users[i].stats.chanStateTraj.append(self.users[i].chan)
 
         if time.time() - startTime < self.param.timeSlot:
@@ -431,9 +352,6 @@ while True:
     if totalTime > ticker * 10:
         print 'elapsed time: ' + str(totalTime)
         ticker += 1
-
-    for i in range(Parameters.userNum):
-        stateTracker[i] = BSNode.users[i].findMeasures()
 
     start = time.time()
     scheduledUsers = BSNode.schedule()

@@ -56,13 +56,12 @@ class statistics:
 class param:
     def __init__(self):
         self.userNum = int(sys.argv[1])
-        self.capacity = int(sys.argv[2])
+        self.preFetchThreshold = int(sys.argv[2])
         self.timeSlot = float(sys.argv[3]) #duration of one scheduling slot
         self.totSimTime = int(sys.argv[4]) #duration of the entire simulation
         self.bufferLimit = 20
         self.chanStates = 4
         self.numLayer = 2
-        self.preFetchThreshold = 2
         self.discount = 0.99
         self.epsilon = 0.01
 
@@ -79,6 +78,9 @@ class user:
         self.bufTracker = 0.0
         self.receivedSegments = [0 for i in range(parameters.numLayer)]
         self.stats = statistics(parameters)
+    def reward():
+        return 0
+
 
 class scheduler:
     def __init__(self,mode,parameters):
@@ -86,29 +88,18 @@ class scheduler:
         self.users = [user(parameters) for i in range(parameters.userNum)]
         self.mode = mode
     def schedule(self):
-        active_v = [0 for x in range(self.param.userNum)]
+        active_v = -1
 
         if self.mode == 'maxrate':
             cur_rates = [0 for x in range(self.param.userNum)]
             for u in range(self.param.userNum):
                 cur_rates[u] = self.users[u].chan
-            remain = self.param.capacity
-            while remain > 0:
-                candidate = find_minmax(cur_rates, lambda x: x == max(cur_rates))
-                p = len(candidate)
-                if p > remain: #randomly choose between them
-                    for i in range(remain):
-                        k = random.randint(0,len(candidate)-1)
-                        active_v[candidate[k]] = 1
-                        candidate.pop(k)
-                elif p < remain:
-                    for i in range(p):
-                        active_v[candidate[i]] = 1
-                        cur_rates[candidate[i]] = -1
-                else:
-                    for i in range(p):
-                        active_v[candidate[i]] = 1
-                remain -= p
+            candidate = find_minmax(cur_rates, lambda x: x == max(cur_rates))
+            if len(candidate) > 1: #randomly choose between them
+                k = random.randint(0,len(candidate)-1)
+                active_v = candidate[k]
+            else:
+                active_v = candidate[0]
         elif self.mode == 'pf':
             propRates = [0.0 for x in range(self.param.userNum)]
             for u in range(self.param.userNum):
@@ -117,85 +108,37 @@ class scheduler:
                 else:
                     denom = self.users[u].rateAccum
                 propRates[u] = self.users[u].chan / denom
-            remain = self.param.capacity
-            while remain > 0:
-                candidate = find_minmax(propRates, lambda x: x == max(propRates))
-                p = len(candidate)
-                if p > remain: #randomly choose between them
-                    for i in range(remain):
-                        k = random.randint(0,len(candidate)-1)
-                        active_v[candidate[k]] = 1
-                        candidate.pop(k)
-                elif p < remain:
-                    for i in range(p):
-                        active_v[candidate[i]] = 1
-                        propRates[candidate[i]] = -1
-                else:
-                    for i in range(p):
-                        active_v[candidate[i]] = 1
-                remain -= p
+            candidate = find_minmax(propRates, lambda x: x == max(propRates))
+            if len(candidate) > 1: #randomly choose between them
+                k = random.randint(0,len(candidate)-1)
+                active_v = candidate[k]
+            else:
+                active_v = candidate[0]
         elif self.mode == 'heuristic':
-            finalIndex = [0 for u in range(self.param.userNum)]
-
-            for u in range(self.param.userNum):
-                if self.users[u].bufTracker <= 0:
-                    finalIndex[u] = self.param.bufferLimit + self.users[u].chan
+            chanCandidate = [u for u in range(self.param.userNum) if self.users[u].chan == max([self.users[i].chan for i in range(self.param.userNum) if self.users[i].bufTracker <= 0])]
+            if len(chanCandidate) == 0:
+                bufCandidate = [u for u in range(self.param.userNum) if self.users[u].buffer[0] == min([self.users[i].buffer[0] for i in range(self.param.userNum) if self.users[i].bufTracker > 0])]
+                if len(bufCandidate > 1):
+                    k = random.randint(0,len(bufCandidate)-1)
+                    active_v = bufCandidate[k]
                 else:
-                    finalIndex[u] = self.param.bufferLimit - self.users[u].buffer[0]
-            remain = self.param.capacity
-            while remain > 0:
-                candidates = find_minmax(finalIndex, lambda x: x == max(finalIndex))
-                if len(candidates) <= remain:
-                    for i in range(len(candidates)):
-                        active_v[candidates[i]] = 1
-                        finalIndex[candidates[i]] = -1
-                    remain -= len(candidates)
-                else:
-                    # Systematically break ties.
-                    if finalIndex[candidates[0]] > self.param.bufferLimit:
-                        subs = [self.users[u].buffer[0] for u in candidates]
-                        newCandidates = find_minmax(subs, lambda x: x == min(subs))
-                    else:
-                        subs = [self.users[u].chan for u in candidates]
-                        newCandidates = find_minmax(subs, lambda x: x == max(subs))
-
-                    if len(newCandidates) <= remain:
-                        for i in range(len(newCandidates)):
-                            active_v[candidates[newCandidates[i]]] = 1
-                            finalIndex[candidates[newCandidates[i]]] = -1
-                        remain -= len(newCandidates)
-                    else:
-                        k = random.randint(0,len(newCandidates) - 1)
-                        if active_v[candidates[newCandidates[k]]] != 1:
-                            active_v[candidates[newCandidates[k]]] = 1
-                            candidates.pop(newCandidates[k])
-                            newCandidates.pop(k)
-                            remain -= 1
+                    active_v = bufCandidate[0]
+            elif len(chanCandidate) > 1:
+                k = random.randint(0,len(chanCandidate)-1)
+                active_v = chanCandidate[k]
+            else:
+                active_v = chanCandidate[0]
         elif self.mode == 'maxurgency':
-            curBase = [self.users[u].buffer[0] for x in range(self.param.userNum)]
-            remain = self.param.capacity
-            while remain > 0:
-                candidate = find_minmax(curBase, lambda x: x == min(curBase))
-                p = len(candidate)
-                if p > remain: #randomly choose between them
-                    for i in range(remain):
-                        k = random.randint(0,len(candidate)-1)
-                        active_v[candidate[k]] = 1
-                        candidate.pop(k)
-                elif p < remain:
-                    for i in range(p):
-                        active_v[candidate[i]] = 1
-                        curBase[candidate[i]] = self.param.bufferLimit + 1
-                else:
-                    for i in range(p):
-                        active_v[candidate[i]] = 1
-                remain -= p
-
-            if sum(active_v) != self.param.capacity:
-                print 'ERROR!'
+            curBase = [self.users[u].buffer[0] for u in range(self.param.userNum)]
+            candidate = find_minmax(curBase, lambda x: x == min(curBase))
+            if len(candidate) > 1: #randomly choose between them
+                k = random.randint(0,len(candidate)-1)
+                active_v = candidate[k]
+            else:
+                active_v = candidate[0]
 
         for i in range(self.param.userNum):
-            if active_v[i] == 1:
+            if active_v == i:
                 self.users[i].rateAccum = (1 - 1.0/self.users[i].tc)*self.users[i].rateAccum + (1.0/self.users[i].tc)*self.users[i].chan
                 self.users[i].bufTracker += self.param.epsilon * ((self.users[i].buffer[0] - self.users[i].oldBuffer[0]) + self.users[i].buffer[1] - self.users[i].oldBuffer[1])
             else:
@@ -203,59 +146,29 @@ class scheduler:
                 self.users[i].bufTracker -= self.param.epsilon
         return active_v
 
-    def NextSegmentsToSend(self,activeVector):
-        sendBuffer = [fileBuffer(self.param) for u in range(self.param.userNum)]
-
+    def NextSegmentsToSend(self,activeUser):
+        sendBuffer = [[0 for u in range(self.param.numLayer)] for u in range(self.param.userNum)]
+        sendBuffer[activeUser][0] == 1
         for u in range(self.param.userNum):
-
             self.users[u].oldBuffer = [self.users[u].buffer[l] for l in range(self.param.numLayer)]
-
-            if self.users[u].buffer[0] == 0: #Take re-buffering into account
-                self.users[u].stats.rebuf += self.param.timeSlot
-                self.users[u].stats.rebuffSlots.append(totalTime)
-            else:
-                for l in range(self.param.numLayer):
-                    self.users[u].buffer[l] = max(self.users[u].buffer[l] - 1,0)
-
-            if activeVector[u] == 1:
-                headOfLine = [self.users[u].nextToBeSent[l] for l in range(self.param.numLayer)]
-                res = self.users[u].chan #This needs more effort
-                tempBuf = [self.users[u].buffer[l] for l in range(self.param.numLayer)]
-
-                dif = [0 for i in range(self.param.numLayer)]
-                dif[self.param.numLayer - 1] = self.param.preFetchThreshold - 1
-                for k in range(self.param.numLayer - 1):
-                    dif[k] = tempBuf[k] - tempBuf[k + 1]
-                for s in range(3):  # Assume highest rate TODO: fixme
-                    for r in range(self.param.numLayer):
-                        tmp = tempBuf[r]
-                        if dif[r] < self.param.preFetchThreshold and tmp < self.param.bufferLimit:
-                            tempBuf[r] = tmp + 1
-                            sendBuffer[u].buffer[r].insert(len(sendBuffer[u].buffer[r]),headOfLine[r])
-                            headOfLine[r] += 1
-                            dif[self.param.numLayer - 1] = self.param.preFetchThreshold - 1
-                            for k in range(self.param.numLayer - 1):
-                                dif[k] = tempBuf[k] - tempBuf[k + 1]
-                            break
-                sendBuffer[u].sortRequestedSegments()
         return sendBuffer
+
     def transmit(self,queue,sockets,activeVector):
         breakUser = False
         breakLayer = False
         startTime = time.time()
         for i in range(self.param.userNum):
-            if activeVector[i] == 1:
+            if activeVector == i:
                 for l in range(self.param.numLayer):
-                    for f in queue[i].buffer[l]:
-                        if f % 20 < 10:
-                            segString = '0' + str(f % 20)
-                        else:
-                            segString = str(f % 20)
-                        fileName = 'layer' + str(l) + '_' + segString + '.svc'
-                        sockets.transmitFile(fileName,i)
-                        self.users[i].buffer[l] += 1
-                        self.users[i].stats.receiverBuffer[l] += 1
-                        self.users[i].nextToBeSent[l] = max(queue[i].buffer[l]) + 1
+                    if queue[i][l] % 20 < 10:
+                        segString = '0' + str(queue[i][l] % 20)
+                    else:
+                        segString = str(queue[i][l] % 20)
+                    fileName = 'layer' + str(l) + '_' + segString + '.svc'
+                    sockets.transmitFile(fileName,i)
+                    self.users[i].buffer[l] += 1
+                    self.users[i].stats.receiverBuffer[l] += 1
+                    self.users[i].nextToBeSent[l] = queue[i][l] + 1
             sockets.cliSockets[i].sendall("sfinished")
             txRate = float(sockets.cliSockets[i].recv(5))
             self.users[i].chan = txRate

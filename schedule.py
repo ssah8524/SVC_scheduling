@@ -21,6 +21,7 @@ class statistics:
     def __init__(self,parameters):
         self.receiverBuffer = [0 for i in range(parameters.numLayer)]
         self.rebuf = 0
+        self.totalReward = 0
         self.chanStateTraj = []
         self.rebuffSlots = []
     def layerRatio(self): #For now this works for two layers only
@@ -55,7 +56,7 @@ class statistics:
 
 class param:
     def __init__(self):
-        self.playbackDelay = 5
+        self.playbackDelay = 3
         self.userNum = int(sys.argv[1])
         self.preFetchThreshold = int(sys.argv[2])
         self.timeSlot = float(sys.argv[3]) #duration of one scheduling slot
@@ -63,11 +64,15 @@ class param:
         self.bufferLimit = 20
         self.chanStates = 4
         self.numLayer = 2
+        self.frameRates = [12,24]
         self.discount = 0.99
         self.epsilon = 0.01
         self.Tseg = 1
 
 class user:
+    alpha = 2
+    beta = 0.63
+    penalty = 0
     def __init__(self,parameters):
         # For now let's assume that all users start from an initially empty buffer
         self.param = parameters
@@ -82,9 +87,31 @@ class user:
         self.plTime = 0
         self.lastSegs = [-1 for u in range(parameters.numLayer)]
         self.stats = statistics(parameters)
-    def reward():
-        return 0
+    def reward(self,dlTime):
+        numSegs = int((self.plTime + dlTime) / self.param.Tseg)
+        residue = self.param.Tseg * ((self.plTime + dlTime) / self.param.Tseg - int((self.plTime + dlTime) / self.param.Tseg))
+        r = 0
 
+        #print self.buffer[0], self.buffer[1]
+        for s in range(numSegs + 1):
+            layers = 0
+            dur = self.param.Tseg
+            for l in range(self.param.numLayer):
+                if self.buffer[l] > s:
+                    layers += 1
+                else:
+                    break
+            if s == 0:
+                dur -= self.plTime
+            elif residue > 0:
+                dur = residue
+
+            if layers > 0:
+                r += ((1 - math.exp(-1 * self.alpha * (float(self.param.frameRates[layers - 1]) / float(self.param.frameRates[self.param.numLayer - 1]))**self.beta)) / (1 - math.exp(-1 * self.alpha))) * dur * self.param.discount**(time.time() - initialTime - self.param.playbackDelay)
+
+            else: ##This occurs if we have re-buffering
+                r += self.penalty * dur * self.param.discount**(time.time() - initialTime - self.param.playbackDelay)
+        self.stats.totalReward += r
 
 class scheduler:
     def __init__(self,mode,parameters):
@@ -94,7 +121,6 @@ class scheduler:
         self.dlTime = 0
     def schedule(self):
         active_v = -1
-
         if self.mode == 'maxrate':
             cur_rates = [0 for x in range(self.param.userNum)]
             for u in range(self.param.userNum):
@@ -149,7 +175,6 @@ class scheduler:
                 self.users[i].rateAccum = (1 - 1.0/self.users[i].tc)*self.users[i].rateAccum
                 self.users[i].bufTracker -= self.param.epsilon
         return active_v
-
     def NextSegmentsToSend(self,activeUser):
 
         for u in range(self.param.userNum):
@@ -168,15 +193,10 @@ class scheduler:
             segmentToRequest = self.users[activeUser].lastSegs[0] + 1
         else:
             segmentToRequest = max(math.ceil((time.time() - initialTime - self.param.playbackDelay - self.users[activeUser].rebuf) / self.param.Tseg),self.users[activeUser].lastSegs[layerToRequest] + 1)
-
-        if activeUser == 0:
-            print segmentToRequest,layerToRequest, self.users[activeUser].buffer[0],self.users[activeUser].buffer[1]
-
+        print activeUser,segmentToRequest,layerToRequest,self.users[activeUser].buffer[0],self.users[activeUser].buffer[1]
         return [segmentToRequest,layerToRequest]
 
     def transmit(self,subSeg,sockets,activeUser):
-        breakUser = False
-        breakLayer = False
         startTime = time.time()
         if subSeg[0] % 20 < 10:
             segString = '0' + str(int(subSeg[0] % 20))
@@ -196,6 +216,7 @@ class scheduler:
                 if self.param.Tseg * self.users[u].buffer[0] - self.users[u].plTime < dlTime:
                     self.users[u].rebuf += dlTime - self.param.Tseg * self.users[u].buffer[0] + self.users[u].plTime
                     self.users[u].rebufFlag = 1
+                self.users[u].reward(dlTime)  ## The reward is calculated here.
 
         if subSeg[1] == 0:
             self.users[activeUser].lastSegs[0] += 1
@@ -206,8 +227,6 @@ class scheduler:
             if self.param.Tseg * self.users[activeUser].buffer[subSeg[1]] + self.param.playbackDelay - self.users[activeUser].plTime >= dlTime:
                 self.users[activeUser].buffer[subSeg[1]] += 1
                 self.users[activeUser].stats.receiverBuffer[subSeg[1]] += 1
-#            else:
-#               sockets.cliSockets[activeUser].sendall("discardit")
 
         for u in range(self.param.userNum):
             for l in range(self.param.numLayer):
@@ -216,17 +235,10 @@ class scheduler:
                 self.users[u].plTime  = (self.users[u].plTime + dlTime) - math.floor(self.users[u].plTime + dlTime)
             if self.users[u].rebufFlag == 1:
                 self.users[u].plTime = 0
+                self.users[u].rebufFlag = 0
 
         if time.time() - startTime > self.param.timeSlot:
             print "download exceeded time slot duration"
-
-class fileBuffer:
-    def __init__(self,parameters):
-        self.buffer = [[] for l in range(parameters.numLayer)]
-    def sortRequestedSegments(self):
-        for l in range(Parameters.numLayer):
-            if self.buffer[l] != []:
-                self.buffer[l] = sorted(self.buffer[l])
 
 class socketHandler:
     def __init__(self,Parameters):
@@ -261,10 +273,8 @@ class socketHandler:
 ### Main program starts here! ###
 
 Parameters = param()
-#Parameters.createVectors()
 BSNode = scheduler(sys.argv[5],Parameters)
 Sockets = socketHandler(Parameters)
-
 Sockets.establishConnection()
 
 totalTime = 0
@@ -281,17 +291,8 @@ while True:
 
     start = time.time()
     scheduledUser = BSNode.schedule()
-
-### Reward function must come here
-
-##################################
-
-#    for u in range(Parameters.userNum):
-#        print BSNode.users[u].buffer,BSNode.users[u].oldBuffer
-
-    sendingQueue = BSNode.NextSegmentsToSend(scheduledUser)
-
-    BSNode.transmit(sendingQueue,Sockets,scheduledUser)
+    newSegment = BSNode.NextSegmentsToSend(scheduledUser)
+    BSNode.transmit(newSegment,Sockets,scheduledUser)
 
     end = time.time()
     totalTime += end - start
@@ -300,13 +301,15 @@ while True:
         break
 for i in range(Parameters.userNum):
     Sockets.cliSockets[i].send("finished!")
+
 Sockets.closeConnection()
 
 meanLayerRatio = numpy.mean([BSNode.users[u].stats.layerRatio() for u in range(Parameters.userNum)])
 meanChannel = numpy.mean([BSNode.users[u].stats.averageRate() for u in range(Parameters.userNum)])
 meanRebuf = numpy.mean([BSNode.users[u].stats.rebuf for u in range(Parameters.userNum)])
+meanReward = numpy.mean([BSNode.users[u].stats.totalReward for u in range(Parameters.userNum)])
 
-print meanRebuf, meanRebuf/totalTime
+print meanReward, meanRebuf/totalTime
 
 for i in range(Parameters.userNum):
     BSNode.users[i].stats.writeFiles(i+1)

@@ -56,15 +56,15 @@ class statistics:
 
 class param:
     def __init__(self):
-        self.playbackDelay = 3
+        self.playbackDelay = 0
         self.userNum = int(sys.argv[1])
         self.preFetchThreshold = int(sys.argv[2])
         self.timeSlot = float(sys.argv[3]) #duration of one scheduling slot
         self.totSimTime = int(sys.argv[4]) #duration of the entire simulation
         self.bufferLimit = 20
         self.chanStates = 4
-        self.numLayer = 2
-        self.frameRates = [12,24]
+        self.numLayer = 3
+        self.frameRates = [6,12,24]
         self.discount = 0.99
         self.epsilon = 0.01
         self.Tseg = 1
@@ -180,20 +180,23 @@ class scheduler:
         for u in range(self.param.userNum):
             self.users[u].oldBuffer = [self.users[u].buffer[l] for l in range(self.param.numLayer)]
 
-        layerToRequest = -1
+        layerToRequest = 0
         segmentToRequest = -1
         for l in range(self.param.numLayer - 1):
-            if self.users[activeUser].buffer[l] - self.users[activeUser].buffer[l + 1] <= self.param.preFetchThreshold:
+            if self.users[activeUser].buffer[l] - self.users[activeUser].buffer[l + 1] < self.param.preFetchThreshold:
                 layerToRequest = l
                 break
             elif self.users[activeUser].buffer[l] - self.users[activeUser].buffer[l + 1] > self.param.preFetchThreshold:
                 layerToRequest = l + 1
                 break
+            else:
+                continue
+
         if layerToRequest == 0: ##If base layer is requested, it should be consecutive because no jumps are allowed in the base layer.
             segmentToRequest = self.users[activeUser].lastSegs[0] + 1
         else:
             segmentToRequest = max(math.ceil((time.time() - initialTime - self.param.playbackDelay - self.users[activeUser].rebuf) / self.param.Tseg),self.users[activeUser].lastSegs[layerToRequest] + 1)
-        print activeUser,segmentToRequest,layerToRequest,self.users[activeUser].buffer[0],self.users[activeUser].buffer[1]
+        #print layerToRequest
         return [segmentToRequest,layerToRequest]
 
     def transmit(self,subSeg,sockets,activeUser):
@@ -224,7 +227,7 @@ class scheduler:
             self.users[activeUser].stats.receiverBuffer[0] += 1
         else:
             self.users[activeUser].lastSegs[subSeg[1]] += 1
-            if self.param.Tseg * self.users[activeUser].buffer[subSeg[1]] + self.param.playbackDelay - self.users[activeUser].plTime >= dlTime:
+            if self.param.Tseg * subSeg[0] + self.param.playbackDelay - self.users[activeUser].plTime >= dlTime:
                 self.users[activeUser].buffer[subSeg[1]] += 1
                 self.users[activeUser].stats.receiverBuffer[subSeg[1]] += 1
 

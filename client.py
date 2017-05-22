@@ -9,8 +9,8 @@ port = int(sys.argv[2])
 
 s.connect((host, port))
 
-layerNo = 2
-round = [-1,-1]
+layerNo = 3
+round = [-1,-1,-1]
 channelTraj = []
 recRate = '0'
 while True:
@@ -28,7 +28,7 @@ while True:
         continue
 
     size = int(message.split(" ")[0])
-    print size
+    #print size
     layer = int(message.split(" ")[1])
 
     name = ''
@@ -39,10 +39,10 @@ while True:
     if segmentNo == 0:
         round[layer] += 1
 
-    if segmentNo + round[layer] * 30 < 10:
-        segString = '0' + str(segmentNo + round[layer] * 30)
+    if segmentNo + round[layer] * 20 < 10:
+        segString = '0' + str(segmentNo + round[layer] * 20)
     else:
-        segString = str(segmentNo + round[layer] * 30)
+        segString = str(segmentNo + round[layer] * 20)
 
     name = 'layer' + str(layer) + '_' + segString + '.svc'
     file = open('user_files/' + str(name),'wb')
@@ -58,7 +58,7 @@ while True:
         else:
             dat = dat + s.recv(1)
     stop = time.time()
-    recRate = int((8 * sys.getsizeof(dat))/(stop - start)/1000000)
+    recRate = int((8 * sys.getsizeof(dat))/(stop - start)/1000000) #received rate in Mbps
     print recRate
     channelTraj.append(recRate)
     recRate = str(recRate)

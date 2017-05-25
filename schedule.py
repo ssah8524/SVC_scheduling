@@ -1,6 +1,6 @@
 ## This file assumes a single class of users with a diagonal quality adaptation method with a pre-fetch threshold of 5 segments.
 
-import time, threading, random, socket, numpy, sys, math, tqdm, subprocess
+import time, threading, random, socket, numpy, sys, math, subprocess
 
 #argv = script name, slot duration, total simulation time, scheduling method
 #channelMatrix = [0.9,0.1,0,0,0.1,0.8,0.1,0,0,0.1,0.8,0.1,0,0,0.1,0.9]
@@ -78,13 +78,14 @@ class user:
         self.param = parameters
         self.buffer = [0 for i in range(parameters.numLayer)]
         self.oldBuffer = [0 for i in range(parameters.numLayer)]
-        self.chan = 0
+        self.rate = 0
         self.tc = 100
         self.rateAccum = 0.0
         self.bufTracker = 0.0
         self.rebuf = 0.0
         self.rebufFlag = 0
         self.plTime = 0
+        self.rssi = -100
         self.lastSegs = [-1 for u in range(parameters.numLayer)]
         self.stats = statistics(parameters)
     def reward(self,dlTime):
@@ -122,10 +123,10 @@ class scheduler:
     def schedule(self):
         active_v = -1
         if self.mode == 'maxrate':
-            cur_rates = [0 for x in range(self.param.userNum)]
+            cur_chan = [0 for x in range(self.param.userNum)]
             for u in range(self.param.userNum):
-                cur_rates[u] = self.users[u].chan
-            candidate = find_minmax(cur_rates, lambda x: x == max(cur_rates))
+                cur_chan[u] = self.users[u].rssi
+            candidate = find_minmax(cur_chan, lambda x: x == max(cur_chan))
             if len(candidate) > 1: #randomly choose between them
                 k = random.randint(0,len(candidate)-1)
                 active_v = candidate[k]
@@ -138,7 +139,7 @@ class scheduler:
                     denom = 0.01
                 else:
                     denom = self.users[u].rateAccum
-                propRates[u] = self.users[u].chan / denom
+                propRates[u] = self.users[u].rate / denom
             candidate = find_minmax(propRates, lambda x: x == max(propRates))
             if len(candidate) > 1: #randomly choose between them
                 k = random.randint(0,len(candidate) - 1)
@@ -146,7 +147,7 @@ class scheduler:
             else:
                 active_v = candidate[0]
         elif self.mode == 'heuristic':
-            chanCandidate = [u for u in range(self.param.userNum) if self.users[u].chan == max([self.users[i].chan for i in range(self.param.userNum) if self.users[i].bufTracker <= 0])]
+            chanCandidate = [u for u in range(self.param.userNum) if self.users[u].rssi == max([self.users[i].rssi for i in range(self.param.userNum) if self.users[i].bufTracker <= 0])]
             if len(chanCandidate) == 0:
                 bufCandidate = [u for u in range(self.param.userNum) if self.users[u].buffer[0] == min([self.users[i].buffer[0] for i in range(self.param.userNum) if self.users[i].bufTracker > 0])]
                 if len(bufCandidate) > 1:
@@ -169,7 +170,7 @@ class scheduler:
                 active_v = candidate[0]
         for i in range(self.param.userNum):
             if active_v == i:
-                self.users[i].rateAccum = (1 - 1.0/self.users[i].tc) * self.users[i].rateAccum + (1.0/self.users[i].tc) * self.users[i].chan
+                self.users[i].rateAccum = (1 - 1.0/self.users[i].tc) * self.users[i].rateAccum + (1.0/self.users[i].tc) * self.users[i].rate
                 self.users[i].bufTracker += self.param.epsilon * ((self.users[i].buffer[0] - self.users[i].oldBuffer[0]) + self.users[i].buffer[1] - self.users[i].oldBuffer[1])
             else:
                 self.users[i].rateAccum = (1 - 1.0/self.users[i].tc) * self.users[i].rateAccum
@@ -209,8 +210,8 @@ class scheduler:
         sockets.transmitFile(fileName,activeUser)
         sockets.cliSockets[activeUser].sendall("sfinished")
         txRate = float(sockets.cliSockets[activeUser].recv(5))
-        self.users[activeUser].chan = txRate
-        self.users[activeUser].stats.chanStateTraj.append(self.users[activeUser].chan)
+        self.users[activeUser].rate = txRate
+        self.users[activeUser].stats.chanStateTraj.append(self.users[activeUser].rssi)
 
         dlTime = time.time() - startTime
 
@@ -280,7 +281,8 @@ Parameters = param()
 
 for n in range(Parameters.userNum):
     IP = "192.168.0." + str(n + 2)
-    subprocess.call("ping","-t 2",IP,shell=True)
+    print IP
+    subprocess.call("ping -t 2 " + IP,shell=True)
 
 BSNode = scheduler(sys.argv[5],Parameters)
 Sockets = socketHandler(Parameters)
@@ -299,6 +301,15 @@ while True:
         ticker += 1
 
     start = time.time()
+
+
+    # Determine the channel quality of all users
+    addresses = subprocess.check_output("arp -n -i ap0 | awk '{print $1","$3}' | tail -n +2",shell=True)
+    MAC = subprocess.check_output(addresses + " | cut -f2 -d',')",shell=True)
+    RSSIs = subprocces.chech_output("sudo iw dev ap0 station get " + MAC+ " | awk 'NR==9{print $2}'")
+    for n in range(Parameters.userNum):
+        BSNode.users[RSSIs[n][0] - 1].rssi = float(RSSIs[n][1])
+
     scheduledUser = BSNode.schedule()
     newSegment = BSNode.NextSegmentsToSend(scheduledUser)
     BSNode.transmit(newSegment,Sockets,scheduledUser)

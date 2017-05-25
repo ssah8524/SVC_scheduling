@@ -281,8 +281,7 @@ Parameters = param()
 
 for n in range(Parameters.userNum):
     IP = "192.168.0." + str(n + 2)
-    print IP
-    subprocess.call("ping -t 2 " + IP,shell=True)
+    subprocess.call("ping -c 2 " + IP,shell=True)
 
 BSNode = scheduler(sys.argv[5],Parameters)
 Sockets = socketHandler(Parameters)
@@ -304,7 +303,9 @@ while True:
 
 
     # Determine the channel quality of all users
-    addresses = subprocess.check_output("arp -n -i ap0 | awk '{print $1","$3}' | tail -n +2",shell=True)
+
+    out = subprocess.call(['/bin/sh','test.sh'],shell=True)
+    #addresses = subprocess.check_output("arp -n -i ap0 | awk '{print $1","$3}' | tail -n +2",shell=True)
     MAC = subprocess.check_output(addresses + " | cut -f2 -d',')",shell=True)
     RSSIs = subprocces.chech_output("sudo iw dev ap0 station get " + MAC+ " | awk 'NR==9{print $2}'")
     for n in range(Parameters.userNum):

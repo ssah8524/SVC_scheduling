@@ -1,6 +1,6 @@
 ## This file assumes a single class of users with a diagonal quality adaptation method with a pre-fetch threshold of 5 segments.
 
-import time, threading, random, socket, numpy, sys, math
+import time, threading, random, socket, numpy, sys, math, tqdm, subprocess
 
 #argv = script name, slot duration, total simulation time, scheduling method
 #channelMatrix = [0.9,0.1,0,0,0.1,0.8,0.1,0,0,0.1,0.8,0.1,0,0,0.1,0.9]
@@ -169,12 +169,13 @@ class scheduler:
                 active_v = candidate[0]
         for i in range(self.param.userNum):
             if active_v == i:
-                self.users[i].rateAccum = (1 - 1.0/self.users[i].tc)*self.users[i].rateAccum + (1.0/self.users[i].tc) * self.users[i].chan
+                self.users[i].rateAccum = (1 - 1.0/self.users[i].tc) * self.users[i].rateAccum + (1.0/self.users[i].tc) * self.users[i].chan
                 self.users[i].bufTracker += self.param.epsilon * ((self.users[i].buffer[0] - self.users[i].oldBuffer[0]) + self.users[i].buffer[1] - self.users[i].oldBuffer[1])
             else:
-                self.users[i].rateAccum = (1 - 1.0/self.users[i].tc)*self.users[i].rateAccum
+                self.users[i].rateAccum = (1 - 1.0/self.users[i].tc) * self.users[i].rateAccum
                 self.users[i].bufTracker -= self.param.epsilon
         return active_v
+
     def NextSegmentsToSend(self,activeUser):
 
         for u in range(self.param.userNum):
@@ -196,7 +197,6 @@ class scheduler:
             segmentToRequest = self.users[activeUser].lastSegs[0] + 1
         else:
             segmentToRequest = max(math.ceil((time.time() - initialTime - self.param.playbackDelay - self.users[activeUser].rebuf) / self.param.Tseg),self.users[activeUser].lastSegs[layerToRequest] + 1)
-        #print layerToRequest
         return [segmentToRequest,layerToRequest]
 
     def transmit(self,subSeg,sockets,activeUser):
@@ -275,7 +275,13 @@ class socketHandler:
 
 ### Main program starts here! ###
 
+##First, the AP pings all users to add the entry into the ARP table.
 Parameters = param()
+
+for n in range(Parameters.userNum):
+    IP = "192.168.0." + str(n + 2)
+    subprocess.call("ping","-t 2",IP,shell=True)
+
 BSNode = scheduler(sys.argv[5],Parameters)
 Sockets = socketHandler(Parameters)
 Sockets.establishConnection()
@@ -289,7 +295,7 @@ initialTime = time.time()
 while True:
 
     if totalTime > ticker * 10:
-        #print 'elapsed time: ' + str(totalTime)
+        print 'elapsed time: ' + str(totalTime)
         ticker += 1
 
     start = time.time()

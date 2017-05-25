@@ -250,8 +250,8 @@ class socketHandler:
         self.portNo = [int(sys.argv[6]) + i for i in range(Parameters.userNum)]
         self.servSockets = [socket.socket(socket.AF_INET, socket.SOCK_STREAM) for i in range(Parameters.userNum)]
         self.cliSockets = [socket.socket(socket.AF_INET, socket.SOCK_STREAM) for i in range(Parameters.userNum)]
-        self.host = socket.gethostname()
-        #self.host = "192.168.0.100"
+        #self.host = socket.gethostname()
+        self.host = "192.168.0.100"
     def establishConnection(self): #Waits until all users have tuned in
         for i in range(self.param.userNum):
             self.servSockets[i].setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -279,10 +279,10 @@ class socketHandler:
 ##First, the AP pings all users to add the entry into the ARP table.
 Parameters = param()
 
-for n in range(Parameters.userNum):
+for n in range(8):
     IP = "192.168.0." + str(n + 2)
     print IP
-    subprocess.call("ping -t 2 " + IP,shell=True)
+    subprocess.call("ping -c 2 " + IP,shell=True)
 
 BSNode = scheduler(sys.argv[5],Parameters)
 Sockets = socketHandler(Parameters)
@@ -304,9 +304,10 @@ while True:
 
 
     # Determine the channel quality of all users
-    addresses = subprocess.check_output("arp -n -i ap0 | awk '{print $1","$3}' | tail -n +2",shell=True)
-    MAC = subprocess.check_output(addresses + " | cut -f2 -d',')",shell=True)
-    RSSIs = subprocces.chech_output("sudo iw dev ap0 station get " + MAC+ " | awk 'NR==9{print $2}'")
+    RSSIs = subprocess.check_output(['/bin/sh','chanEst.sh'],shell=False)
+    print RSSIs
+    #MAC = subprocess.check_output(addresses + " | cut -f2 -d','",shell=True)
+    #RSSIs = subprocces.chech_output("sudo iw dev ap0 station get " + MAC+ " | awk 'NR==9{print $2}'",shell=True)
     for n in range(Parameters.userNum):
         BSNode.users[RSSIs[n][0] - 1].rssi = float(RSSIs[n][1])
 

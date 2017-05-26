@@ -1,6 +1,6 @@
 #!/usr/bin/python           # This is client.py file
 
-import socket,sys,time
+import socket,sys,time,subprocess
 
 s = socket.socket()
 #host = socket.gethostname()
@@ -19,7 +19,15 @@ while True:
     while len(message) < 9:
         message = message + s.recv(1)
 
-    if message == "finished!":
+    if message == "ipaddreqs":
+        IP = subprocess.check_output(['/bin/bash','extractIP.sh'],shell=False)
+        if len(IP) == 1:
+            IP = '0' + IP
+        s.sendall(IP)
+        if len(IP) != 1 or len(IP) != 2:
+            print "ERROR! IP address is on wrong size"
+        continue
+    elif message == "finished!":
         break
     elif message == "sfinished":
         while len(recRate) < 5:

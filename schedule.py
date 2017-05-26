@@ -85,6 +85,7 @@ class user:
         self.rebuf = 0.0
         self.rebufFlag = 0
         self.plTime = 0
+        self.IPLastByte = -1
         self.rssi = -100
         self.lastSegs = [-1 for u in range(parameters.numLayer)]
         self.stats = statistics(parameters)
@@ -112,7 +113,7 @@ class user:
 
             else: ##This occurs if we have re-buffering
                 r += self.penalty * dur * self.param.discount**(time.time() - initialTime - self.param.playbackDelay)
-    self.stats.totalReward += r
+        self.stats.totalReward += r
 
 class scheduler:
     def __init__(self,mode,parameters):
@@ -196,8 +197,8 @@ class scheduler:
 
         if layerToRequest == 0: ##If base layer is requested, it should be consecutive because no jumps are allowed in the base layer.
             segmentToRequest = self.users[activeUser].lastSegs[0] + 1
-else:
-    segmentToRequest = max(math.ceil((time.time() - initialTime - self.param.playbackDelay - self.users[activeUser].rebuf) / self.param.Tseg),self.users[activeUser].lastSegs[layerToRequest] + 1)
+        else:
+            segmentToRequest = max(math.ceil((time.time() - initialTime - self.param.playbackDelay - self.users[activeUser].rebuf) / self.param.Tseg),self.users[activeUser].lastSegs[layerToRequest] + 1)
         return [segmentToRequest,layerToRequest]
 
     def transmit(self,subSeg,sockets,activeUser):
@@ -223,23 +224,23 @@ else:
                 self.users[u].reward(dlTime)  ## The reward is calculated here.
 
             if subSeg[1] == 0:
-            self.users[activeUser].lastSegs[0] += 1
-            self.users[activeUser].buffer[0] += 1
+                self.users[activeUser].lastSegs[0] += 1
+                self.users[activeUser].buffer[0] += 1
                 self.users[activeUser].stats.receiverBuffer[0] += 1
             else:
-            self.users[activeUser].lastSegs[subSeg[1]] += 1
-            if self.param.Tseg * subSeg[0] + self.param.playbackDelay - self.users[activeUser].plTime >= dlTime:
-                self.users[activeUser].buffer[subSeg[1]] += 1
-                self.users[activeUser].stats.receiverBuffer[subSeg[1]] += 1
+                self.users[activeUser].lastSegs[subSeg[1]] += 1
+                if self.param.Tseg * subSeg[0] + self.param.playbackDelay - self.users[activeUser].plTime >= dlTime:
+                    self.users[activeUser].buffer[subSeg[1]] += 1
+                    self.users[activeUser].stats.receiverBuffer[subSeg[1]] += 1
 
             for u in range(self.param.userNum):
-            for l in range(self.param.numLayer):
-                self.users[u].buffer[l] = max(0,self.users[u].buffer[l] - math.floor(self.users[u].plTime + dlTime))
-            if dlTime + self.users[u].plTime > 1:
-                self.users[u].plTime  = (self.users[u].plTime + dlTime) - math.floor(self.users[u].plTime + dlTime)
-if self.users[u].rebufFlag == 1:
-    self.users[u].plTime = 0
-        self.users[u].rebufFlag = 0
+                for l in range(self.param.numLayer):
+                    self.users[u].buffer[l] = max(0,self.users[u].buffer[l] - math.floor(self.users[u].plTime + dlTime))
+                if dlTime + self.users[u].plTime > 1:
+                    self.users[u].plTime  = (self.users[u].plTime + dlTime) - math.floor(self.users[u].plTime + dlTime)
+                if self.users[u].rebufFlag == 1:
+                    self.users[u].plTime = 0
+                    self.users[u].rebufFlag = 0
 
         if time.time() - startTime > self.param.timeSlot:
             print "download exceeded time slot duration"
@@ -252,12 +253,14 @@ class socketHandler:
         self.cliSockets = [socket.socket(socket.AF_INET, socket.SOCK_STREAM) for i in range(Parameters.userNum)]
         #self.host = socket.gethostname()
         self.host = "192.168.0.100"
-    def establishConnection(self): #Waits until all users have tuned in
+    def establishConnection(self,BaseStation): #Waits until all users have tuned in
         for i in range(self.param.userNum):
             self.servSockets[i].setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.servSockets[i].bind((self.host,self.portNo[i]))
             self.servSockets[i].listen(5)
             self.cliSockets[i] = self.servSockets[i].accept()[0]
+            self.cliSockets[i].sendall("ipaddreqs")
+            self.BaseStation.users[i].IPLastByte = float(self.cliSockets[i].recv(2))
 
 def closeConnection(self):
     for i in range(self.param.userNum):
@@ -279,14 +282,13 @@ def closeConnection(self):
 ##First, the AP pings all users to add the entry into the ARP table.
 Parameters = param()
 
-for n in range(8):
-    IP = "192.168.0." + str(n + 2)
-    print IP
-    subprocess.call("ping -c 2 " + IP,shell=True)
+#for n in range(8):
+#    IP = "192.168.0." + str(n + 2)
+#    subprocess.call("ping -c 2 " + IP,shell=True)
 
 BSNode = scheduler(sys.argv[5],Parameters)
 Sockets = socketHandler(Parameters)
-Sockets.establishConnection()
+Sockets.establishConnection(BSNode)
 
 totalTime = 0
 stateTracker = [0 for i in range(Parameters.userNum)]
@@ -303,15 +305,11 @@ while True:
     start = time.time()
 
 
-# Determine the channel quality of all users
-RSSIs = subprocess.check_output(['/bin/sh','chanEst.sh'],shell=False)
-    print RSSIs
-    #MAC = subprocess.check_output(addresses + " | cut -f2 -d','",shell=True)
-    #RSSIs = subprocces.chech_output("sudo iw dev ap0 station get " + MAC+ " | awk 'NR==9{print $2}'",shell=True)
-    for n in range(Parameters.userNum):
-        BSNode.users[RSSIs[n][0] - 1].rssi = float(RSSIs[n][1])
+    # Determine the channel quality of all users
+    RSSIs = subprocess.check_output(['/bin/bash','chanEst.sh'],shell=False)
 
-scheduledUser = BSNode.schedule()
+
+    scheduledUser = BSNode.schedule()
     newSegment = BSNode.NextSegmentsToSend(scheduledUser)
     BSNode.transmit(newSegment,Sockets,scheduledUser)
 

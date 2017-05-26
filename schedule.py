@@ -314,8 +314,10 @@ while True:
 
     # Determine the channel quality of all users
     RSSIs = subprocess.check_output(['/bin/bash','chanEst.sh'],shell=False)
-    s = 0
+    s = -1
     while s < len(RSSIs):
+        s += 1
+        userNo = -1
         if RSSIs[s] == 'u' and RSSIs[s + 7] == ',':
             userNo = int(RSSIs[s + 6])
             a = s + 8
@@ -327,7 +329,9 @@ while True:
             string += RSSIs[a]
             a += 1
         s = a
-        BSNode.users[userNo].rssi = int(string)
+        for i in range(Parameters.userNum):
+            if userNo >= 0 and BSNode.users[i].IPLastByte == userNo:
+                BSNode.users[i].rssi = int(string)
 
     scheduledUser = BSNode.schedule()
     newSegment = BSNode.NextSegmentsToSend(scheduledUser)

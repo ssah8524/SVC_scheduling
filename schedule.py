@@ -262,9 +262,9 @@ class socketHandler:
             self.cliSockets[i].sendall("ipaddreqs")
             self.BaseStation.users[i].IPLastByte = float(self.cliSockets[i].recv(2))
 
-def closeConnection(self):
-    for i in range(self.param.userNum):
-        self.servSockets[i].close
+    def closeConnection(self):
+        for i in range(self.param.userNum):
+            self.servSockets[i].close
     def transmitFile(self,fileName,receivingUser):
         f = open('service_files/' + fileName,'rb')
         File = f.read()

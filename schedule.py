@@ -254,6 +254,7 @@ class socketHandler:
         #self.host = socket.gethostname()
         self.host = "192.168.0.100"
     def establishConnection(self): #Waits until all users have tuned in
+	addresses = [0 for i in range(self.param.userNum)]
         for i in range(self.param.userNum):
             self.servSockets[i].setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.servSockets[i].bind((self.host,self.portNo[i]))
@@ -288,7 +289,6 @@ Parameters = param()
 
 BSNode = scheduler(sys.argv[5],Parameters)
 Sockets = socketHandler(Parameters)
-Sockets.establishConnection()
 addresses = Sockets.establishConnection()
 for i in range(Parameters.userNum):
     if str(addresses[i])[13] == "'":
@@ -311,13 +311,15 @@ while True:
 
     start = time.time()
 
-
     # Determine the channel quality of all users
     RSSIs = subprocess.check_output(['/bin/bash','chanEst.sh'],shell=False)
     s = -1
+    a = -1
     while s < len(RSSIs):
         s += 1
         userNo = -1
+	if a == len(RSSIs):
+	    break
         if RSSIs[s] == 'u' and RSSIs[s + 7] == ',':
             userNo = int(RSSIs[s + 6])
             a = s + 8
@@ -325,14 +327,15 @@ while True:
             userNo = int(RSSIs[s + 6] + RSSIs[s + 7])
             a = s + 9
         string = ''
-        while RSSIs[a] != 'u':
+	
+        while a < len(RSSIs) and RSSIs[a] != 'u':
             string += RSSIs[a]
             a += 1
-        s = a
+
+        s = a - 1
         for i in range(Parameters.userNum):
             if userNo >= 0 and BSNode.users[i].IPLastByte == userNo:
                 BSNode.users[i].rssi = int(string)
-
     scheduledUser = BSNode.schedule()
     newSegment = BSNode.NextSegmentsToSend(scheduledUser)
     BSNode.transmit(newSegment,Sockets,scheduledUser)

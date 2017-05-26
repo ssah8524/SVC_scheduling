@@ -253,15 +253,15 @@ class socketHandler:
         self.cliSockets = [socket.socket(socket.AF_INET, socket.SOCK_STREAM) for i in range(Parameters.userNum)]
         #self.host = socket.gethostname()
         self.host = "192.168.0.100"
-    def establishConnection(self,BaseStation): #Waits until all users have tuned in
+    def establishConnection(self): #Waits until all users have tuned in
         for i in range(self.param.userNum):
             self.servSockets[i].setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.servSockets[i].bind((self.host,self.portNo[i]))
             self.servSockets[i].listen(5)
-            self.cliSockets[i] = self.servSockets[i].accept()[0]
-            self.cliSockets[i].sendall("ipaddreqs")
-            self.BaseStation.users[i].IPLastByte = float(self.cliSockets[i].recv(2))
-
+            acceptArg = self.servSockets[i].accept()
+            self.cliSockets[i] = acceptArg[0]
+            addresses[i] = acceptArg[1]
+        return addresses
     def closeConnection(self):
         for i in range(self.param.userNum):
             self.servSockets[i].close
@@ -288,7 +288,14 @@ Parameters = param()
 
 BSNode = scheduler(sys.argv[5],Parameters)
 Sockets = socketHandler(Parameters)
-Sockets.establishConnection(BSNode)
+Sockets.establishConnection()
+addresses = Sockets.establishConnection()
+for i in range(Parameters.userNum):
+    if str(addresses[i])[13] == "'":
+        IP = str(addresses[i])[12]
+    else:
+        IP = str(addresses[i])[12] + str(addresses[i])[13]
+    BSNode.users[i].IPLastByte = int(IP)
 
 totalTime = 0
 stateTracker = [0 for i in range(Parameters.userNum)]
@@ -307,7 +314,20 @@ while True:
 
     # Determine the channel quality of all users
     RSSIs = subprocess.check_output(['/bin/bash','chanEst.sh'],shell=False)
-
+    s = 0
+    while s < len(RSSIs):
+        if RSSIs[s] == 'u' and RSSIs[s + 7] == ',':
+            userNo = int(RSSIs[s + 6])
+            a = s + 8
+        elif RSSIs[s] == 'u' and RSSIs[s + 8] == ',':
+            userNo = int(RSSIs[s + 6] + RSSIs[s + 7])
+            a = s + 9
+        string = ''
+        while RSSIs[a] != 'u':
+            string += RSSIs[a]
+            a += 1
+        s = a
+        BSNode.users[userNo].rssi = int(string)
 
     scheduledUser = BSNode.schedule()
     newSegment = BSNode.NextSegmentsToSend(scheduledUser)

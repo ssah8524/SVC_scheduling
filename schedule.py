@@ -78,11 +78,10 @@ class user:
         self.param = parameters
         self.buffer = [0 for i in range(parameters.numLayer)]
         self.oldBuffer = [0 for i in range(parameters.numLayer)]
-        self.rate = 0
+        self.rate = 0.1
         self.tc = 100
         self.rateAccum = 0.0
         self.bufTracker = 0.0
-        self.rebuf = 0.0
         self.rebufFlag = 0
         self.plTime = 0
         self.IPLastByte = -1
@@ -148,8 +147,14 @@ class scheduler:
             else:
                 active_v = candidate[0]
         elif self.mode == 'heuristic':
-            chanCandidate = [u for u in range(self.param.userNum) if self.users[u].rssi == max([self.users[i].rssi for i in range(self.param.userNum) if self.users[i].bufTracker <= 0])]
-            if len(chanCandidate) == 0:
+            chanCandidate = [u for u in range(self.param.userNum) if self.users[u].rssi == max([self.users[i].rssi for i in range(self.param.userNum) if self.users[i].bufTracker <= 0 and self.users[i].bufTracker == min([self.users[j].bufTracker for j in range(self.param.userNum)])])]
+	    print chanCandidate
+	    print [self.users[i].bufTracker for i in range(self.param.userNum)]
+	    print [self.users[i].rssi for i in range(self.param.userNum)]
+	    print '++++++++++++++++++++'
+           #chanCandidate = [u for u in range(self.param.userNum) if self.users[u].rssi == max([self.users[i].rssi for i in range(self.param.userNum) if self.users[i].bufTracker <= 0])]
+ 
+	    if len(chanCandidate) == 0:
                 bufCandidate = [u for u in range(self.param.userNum) if self.users[u].buffer[0] == min([self.users[i].buffer[0] for i in range(self.param.userNum) if self.users[i].bufTracker > 0])]
                 if len(bufCandidate) > 1:
                     k = random.randint(0,len(bufCandidate)-1)
@@ -172,7 +177,7 @@ class scheduler:
         for i in range(self.param.userNum):
             if active_v == i:
                 self.users[i].rateAccum = (1 - 1.0/self.users[i].tc) * self.users[i].rateAccum + (1.0/self.users[i].tc) * self.users[i].rate
-                self.users[i].bufTracker += self.param.epsilon * ((self.users[i].buffer[0] - self.users[i].oldBuffer[0]) + self.users[i].buffer[1] - self.users[i].oldBuffer[1])
+                self.users[i].bufTracker += self.param.epsilon #slightly diverge from the original heuristic because only one segment is downloaded each time
             else:
                 self.users[i].rateAccum = (1 - 1.0/self.users[i].tc) * self.users[i].rateAccum
                 self.users[i].bufTracker -= self.param.epsilon
@@ -198,7 +203,7 @@ class scheduler:
         if layerToRequest == 0: ##If base layer is requested, it should be consecutive because no jumps are allowed in the base layer.
             segmentToRequest = self.users[activeUser].lastSegs[0] + 1
         else:
-            segmentToRequest = max(math.ceil((time.time() - initialTime - self.param.playbackDelay - self.users[activeUser].rebuf) / self.param.Tseg),self.users[activeUser].lastSegs[layerToRequest] + 1)
+            segmentToRequest = max(math.ceil((time.time() - initialTime - self.param.playbackDelay - self.users[activeUser].stats.rebuf) / self.param.Tseg),self.users[activeUser].lastSegs[layerToRequest] + 1)
         return [segmentToRequest,layerToRequest]
 
     def transmit(self,subSeg,sockets,activeUser):
@@ -219,7 +224,7 @@ class scheduler:
         if time.time() - initialTime > self.param.playbackDelay:
             for u in range(self.param.userNum):
                 if self.param.Tseg * self.users[u].buffer[0] - self.users[u].plTime < dlTime:
-                    self.users[u].rebuf += dlTime - self.param.Tseg * self.users[u].buffer[0] + self.users[u].plTime
+                    self.users[u].stats.rebuf += dlTime - self.param.Tseg * self.users[u].buffer[0] + self.users[u].plTime
                     self.users[u].rebufFlag = 1
                 self.users[u].reward(dlTime)  ## The reward is calculated here.
 

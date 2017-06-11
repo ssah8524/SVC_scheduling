@@ -24,11 +24,7 @@ class statistics:
         self.totalReward = 0
         self.chanStateTraj = []
         self.rebuffSlots = []
-    def layerRatio(self): #For now this works for two layers only
-        if float(self.receiverBuffer[0] + self.receiverBuffer[1]) != 0:
-            return float(self.receiverBuffer[0])/float(self.receiverBuffer[0] + self.receiverBuffer[1])
-        else:
-            return 0
+    	
     def averageRate(self):
         return numpy.mean(self.chanStateTraj)
     def writeFiles(self,userIndex):
@@ -148,10 +144,10 @@ class scheduler:
                 active_v = candidate[0]
         elif self.mode == 'heuristic':
             chanCandidate = [u for u in range(self.param.userNum) if self.users[u].rssi == max([self.users[i].rssi for i in range(self.param.userNum) if self.users[i].bufTracker <= 0 and self.users[i].bufTracker == min([self.users[j].bufTracker for j in range(self.param.userNum)])])]
-	    print chanCandidate
-	    print [self.users[i].bufTracker for i in range(self.param.userNum)]
-	    print [self.users[i].rssi for i in range(self.param.userNum)]
-	    print '++++++++++++++++++++'
+	    #print chanCandidate
+	    #print [self.users[i].bufTracker for i in range(self.param.userNum)]
+	    #print [self.users[i].rssi for i in range(self.param.userNum)]
+	    #print '++++++++++++++++++++'
            #chanCandidate = [u for u in range(self.param.userNum) if self.users[u].rssi == max([self.users[i].rssi for i in range(self.param.userNum) if self.users[i].bufTracker <= 0])]
  
 	    if len(chanCandidate) == 0:
@@ -355,12 +351,14 @@ for i in range(Parameters.userNum):
 
 Sockets.closeConnection()
 
-meanLayerRatio = numpy.mean([BSNode.users[u].stats.layerRatio() for u in range(Parameters.userNum)])
+#meanLayerRatio = numpy.mean([BSNode.users[u].stats.layerRatio() for u in range(Parameters.userNum)])
 meanChannel = numpy.mean([BSNode.users[u].stats.averageRate() for u in range(Parameters.userNum)])
 meanRebuf = numpy.mean([BSNode.users[u].stats.rebuf for u in range(Parameters.userNum)])
 meanReward = numpy.mean([BSNode.users[u].stats.totalReward for u in range(Parameters.userNum)])
 
 print meanReward, meanRebuf/totalTime
+for l in range(Parameters.numLayer):
+    print numpy.mean([BSNode.users[u].stats.receiverBuffer[l] for u in range(Parameters.userNum)])
 
 for i in range(Parameters.userNum):
     BSNode.users[i].stats.writeFiles(i+1)

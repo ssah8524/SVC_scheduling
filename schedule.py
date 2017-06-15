@@ -85,6 +85,9 @@ class user:
         self.lastSegs = [-1 for u in range(parameters.numLayer)]
         self.stats = statistics(parameters)
     def reward(self,dlTime):
+	for l in range(self.param.numLayer):
+	    if self.stats.receiverBuffer[l] == totalSimTime:
+		break 
         numSegs = int((self.plTime + dlTime) / self.param.Tseg)
         residue = self.param.Tseg * ((self.plTime + dlTime) / self.param.Tseg - int((self.plTime + dlTime) / self.param.Tseg))
         r = 0
@@ -143,7 +146,9 @@ class scheduler:
             else:
                 active_v = candidate[0]
         elif self.mode == 'heuristic':
-            chanCandidate = [u for u in range(self.param.userNum) if self.users[u].rssi == max([self.users[i].rssi for i in range(self.param.userNum) if self.users[i].bufTracker <= 0 and self.users[i].bufTracker == min([self.users[j].bufTracker for j in range(self.param.userNum)])])]
+            #chanCandidate = [u for u in range(self.param.userNum) if self.users[u].rssi == max([self.users[i].rssi for i in range(self.param.userNum) if self.users[i].bufTracker <= 0 and self.users[i].bufTracker == min([self.users[j].bufTracker for j in range(self.param.userNum)])])]
+	    
+            chanCandidate = [u for u in range(self.param.userNum) if self.users[u].rssi == max([self.users[i].rssi for i in range(self.param.userNum) if self.users[i].bufTracker <= 0])]
 	    #print chanCandidate
 	    #print [self.users[i].bufTracker for i in range(self.param.userNum)]
 	    #print [self.users[i].rssi for i in range(self.param.userNum)]
@@ -173,10 +178,10 @@ class scheduler:
         for i in range(self.param.userNum):
             if active_v == i:
                 self.users[i].rateAccum = (1 - 1.0/self.users[i].tc) * self.users[i].rateAccum + (1.0/self.users[i].tc) * self.users[i].rate
-                self.users[i].bufTracker += self.param.epsilon #slightly diverge from the original heuristic because only one segment is downloaded each time
+                self.users[i].bufTracker += self.param.epsilon*self.dlTime #slightly diverge from the original heuristic because only one segment is downloaded each time
             else:
                 self.users[i].rateAccum = (1 - 1.0/self.users[i].tc) * self.users[i].rateAccum
-                self.users[i].bufTracker -= self.param.epsilon
+                self.users[i].bufTracker -= self.param.epsilon*self.dlTime
         return active_v
 
     def NextSegmentsToSend(self,activeUser):
@@ -215,36 +220,38 @@ class scheduler:
         self.users[activeUser].rate = txRate
         self.users[activeUser].stats.chanStateTraj.append(self.users[activeUser].rssi)
 
-        dlTime = time.time() - startTime
+        self.dlTime = time.time() - startTime
 
         if time.time() - initialTime > self.param.playbackDelay:
             for u in range(self.param.userNum):
-                if self.param.Tseg * self.users[u].buffer[0] - self.users[u].plTime < dlTime:
-                    self.users[u].stats.rebuf += dlTime - self.param.Tseg * self.users[u].buffer[0] + self.users[u].plTime
+                if self.param.Tseg * self.users[u].buffer[0] - self.users[u].plTime < self.dlTime:
+                    self.users[u].stats.rebuf += self.dlTime - self.param.Tseg * self.users[u].buffer[0] + self.users[u].plTime
                     self.users[u].rebufFlag = 1
-                self.users[u].reward(dlTime)  ## The reward is calculated here.
+                self.users[u].reward(self.dlTime)  ## The reward is calculated here.
 
             if subSeg[1] == 0:
                 self.users[activeUser].lastSegs[0] += 1
-                self.users[activeUser].buffer[0] += 1
-                self.users[activeUser].stats.receiverBuffer[0] += 1
+		if self.users[activeUser].buffer[0] < totalSimTime:
+                	self.users[activeUser].buffer[0] = min(self.param.bufferLimit,self.users[activeUser].buffer[0] + 1)
+                	self.users[activeUser].stats.receiverBuffer[0] += 1
             else:
                 self.users[activeUser].lastSegs[subSeg[1]] += 1
-                if self.param.Tseg * subSeg[0] + self.param.playbackDelay - self.users[activeUser].plTime >= dlTime:
-                    self.users[activeUser].buffer[subSeg[1]] += 1
-                    self.users[activeUser].stats.receiverBuffer[subSeg[1]] += 1
+                if self.param.Tseg * subSeg[0] + self.param.playbackDelay - self.users[activeUser].plTime >= self.dlTime:
+		    if self.users[activeUser].buffer[subSeg[1]] < totalSimTime:
+                    	self.users[activeUser].buffer[subSeg[1]] = min(self.param.bufferLimit,self.users[activeUser].buffer[subSeg[1] + 1])
+                    	self.users[activeUser].stats.receiverBuffer[subSeg[1]] += 1
 
             for u in range(self.param.userNum):
                 for l in range(self.param.numLayer):
-                    self.users[u].buffer[l] = max(0,self.users[u].buffer[l] - math.floor(self.users[u].plTime + dlTime))
-                if dlTime + self.users[u].plTime > 1:
-                    self.users[u].plTime  = (self.users[u].plTime + dlTime) - math.floor(self.users[u].plTime + dlTime)
+                    self.users[u].buffer[l] = max(0,self.users[u].buffer[l] - math.floor(self.users[u].plTime + self.dlTime))
+                if self.dlTime + self.users[u].plTime > 1:
+                    self.users[u].plTime  = (self.users[u].plTime + self.dlTime) - math.floor(self.users[u].plTime + self.dlTime)
                 if self.users[u].rebufFlag == 1:
                     self.users[u].plTime = 0
                     self.users[u].rebufFlag = 0
 
-        if time.time() - startTime > self.param.timeSlot:
-            print "download exceeded time slot duration"
+#        if time.time() - startTime > self.param.timeSlot:
+#            print "download exceeded time slot duration"
 
 class socketHandler:
     def __init__(self,Parameters):
@@ -338,6 +345,7 @@ while True:
             if userNo >= 0 and BSNode.users[i].IPLastByte == userNo:
                 BSNode.users[i].rssi = int(string)
     scheduledUser = BSNode.schedule()
+    print scheduledUser
     newSegment = BSNode.NextSegmentsToSend(scheduledUser)
     BSNode.transmit(newSegment,Sockets,scheduledUser)
 
@@ -356,9 +364,11 @@ meanChannel = numpy.mean([BSNode.users[u].stats.averageRate() for u in range(Par
 meanRebuf = numpy.mean([BSNode.users[u].stats.rebuf for u in range(Parameters.userNum)])
 meanReward = numpy.mean([BSNode.users[u].stats.totalReward for u in range(Parameters.userNum)])
 
-print meanReward, meanRebuf/totalTime
+print meanReward, meanRebuf/totalTime,meanChannel
 for l in range(Parameters.numLayer):
     print numpy.mean([BSNode.users[u].stats.receiverBuffer[l] for u in range(Parameters.userNum)])
 
+print 'statistics for each user: '
 for i in range(Parameters.userNum):
-    BSNode.users[i].stats.writeFiles(i+1)
+	print BSNode.users[i].stats.totalReward,BSNode.users[i].stats.rebuf/totalTime,BSNode.users[i].stats.receiverBuffer[0],BSNode.users[i].stats.receiverBuffer[1],BSNode.users[i].stats.receiverBuffer[2]
+	BSNode.users[i].stats.writeFiles(i+1)

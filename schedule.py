@@ -205,7 +205,7 @@ class scheduler:
             if self.users[activeUser].buffer[l] - self.users[activeUser].buffer[l + 1] < self.param.preFetchThreshold:
                 layerToRequest = l
                 break
-            elif self.users[activeUser].buffer[l] - self.users[activeUser].buffer[l + 1] > self.param.preFetchThreshold:
+            elif self.users[activeUser].buffer[l] - self.users[activeUser].buffer[l + 1] >= self.param.preFetchThreshold:
                 layerToRequest = l + 1
                 break
             else:
@@ -231,7 +231,7 @@ class scheduler:
         self.users[activeUser].stats.chanStateTraj.append(self.users[activeUser].rssi)
 
         self.dlTime = time.time() - startTime
-
+        
         if time.time() - initialTime > self.param.playbackDelay:
             for u in range(self.param.userNum):
                 if self.param.Tseg * self.users[u].buffer[0] - self.users[u].plTime < self.dlTime:
@@ -241,13 +241,13 @@ class scheduler:
 
             if subSeg[1] == 0:
                 self.users[activeUser].lastSegs[0] += 1
-		if self.users[activeUser].buffer[0] < self.param.totSimTime:
+		if self.users[activeUser].receiverBuffer[0] < self.param.totSimTime:
                 	self.users[activeUser].buffer[0] = min(self.param.bufferLimit,self.users[activeUser].buffer[0] + 1)
                 	self.users[activeUser].stats.receiverBuffer[0] += 1
             else:
                 self.users[activeUser].lastSegs[subSeg[1]] += 1
                 if self.param.Tseg * subSeg[0] + self.param.playbackDelay - self.users[activeUser].plTime >= self.dlTime:
-		    if self.users[activeUser].buffer[subSeg[1]] < self.param.totSimTime:
+		    if self.users[activeUser].receiverBuffer[subSeg[1]] < self.param.totSimTime:
                     	self.users[activeUser].buffer[subSeg[1]] = min(self.param.bufferLimit,self.users[activeUser].buffer[subSeg[1]] + 1)
                     	self.users[activeUser].stats.receiverBuffer[subSeg[1]] += 1
 

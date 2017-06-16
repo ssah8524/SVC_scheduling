@@ -80,15 +80,14 @@ class user:
         self.rateAccum = 0.0
         self.bufTracker = 0.0
         self.rebufFlag = 0
-        self.plTime = 0
+        self.plTime = 0.0
         self.IPLastByte = -1
         self.rssi = -100
         self.lastSegs = [-1 for u in range(parameters.numLayer)]
         self.stats = statistics(parameters)
-    def reward(self,dlTime):
-	for l in range(self.param.numLayer):
-	    if self.stats.receiverBuffer[l] == self.param.totSimTime:
-		break 
+    def reward(self,dlTime,subSeg):
+	if subSeg[0] >= self.param.totSimTime:
+	    return 
         numSegs = int((self.plTime + dlTime) / self.param.Tseg)
         residue = self.param.Tseg * ((self.plTime + dlTime) / self.param.Tseg - int((self.plTime + dlTime) / self.param.Tseg))
         r = 0
@@ -122,7 +121,7 @@ class scheduler:
         self.param = parameters
         self.users = [user(parameters) for i in range(parameters.userNum)]
         self.mode = mode
-        self.dlTime = 0
+        self.dlTime = 0.0
     def schedule(self):
         active_v = -1
         if self.mode == 'maxrate':
@@ -158,13 +157,7 @@ class scheduler:
             	chanCandidate = [u for u in range(self.param.userNum) if self.users[u].rssi == max(tmpCan)]
 	    else:
 		chanCandidate = []
-            #ChanCandidate = [u for u in range(self.param.userNum) if self.users[u].rssi == max([self.users[i].rssi for i in range(self.param.userNum) if self.users[i].bufTracker <= 0])]
-	    #print chanCandidate
 	    print [self.users[i].bufTracker for i in range(self.param.userNum)]
-	    #print [self.users[i].rssi for i in range(self.param.userNum)]
-	    #print '++++++++++++++++++++'
-           #chanCandidate = [u for u in range(self.param.userNum) if self.users[u].rssi == max([self.users[i].rssi for i in range(self.param.userNum) if self.users[i].bufTracker <= 0])]
- 
 	    if len(chanCandidate) == 0:
                 bufCandidate = [u for u in range(self.param.userNum) if self.users[u].buffer[0] == min([self.users[i].buffer[0] for i in range(self.param.userNum) if self.users[i].bufTracker > 0])]
                 if len(bufCandidate) > 1:
@@ -201,16 +194,21 @@ class scheduler:
 
         layerToRequest = 0
         segmentToRequest = -1
+#	print self.users[activeUser].buffer[0],self.users[activeUser].buffer[1]
         for l in range(self.param.numLayer - 1):
-            if self.users[activeUser].buffer[l] - self.users[activeUser].buffer[l + 1] < self.param.preFetchThreshold:
+	    if self.users[activeUser].buffer[l] == self.param.bufferLimit:
+		if l == self.param.numLayer - 2:
+		    layerToRequest = l + 1
+		continue
+            elif self.users[activeUser].buffer[l] - self.users[activeUser].buffer[l + 1] <= self.param.preFetchThreshold:
                 layerToRequest = l
                 break
-            elif self.users[activeUser].buffer[l] - self.users[activeUser].buffer[l + 1] >= self.param.preFetchThreshold:
+            elif self.users[activeUser].buffer[l] - self.users[activeUser].buffer[l + 1] > self.param.preFetchThreshold:
                 layerToRequest = l + 1
                 break
-            else:
-                continue
-
+            
+	
+#	print self.users[activeUser].buffer[0],self.users[activeUser].buffer[1],self.users[activeUser].buffer[2],layerToRequest
         if layerToRequest == 0: ##If base layer is requested, it should be consecutive because no jumps are allowed in the base layer.
             segmentToRequest = self.users[activeUser].lastSegs[0] + 1
         else:
@@ -230,32 +228,32 @@ class scheduler:
         self.users[activeUser].rate = txRate
         self.users[activeUser].stats.chanStateTraj.append(self.users[activeUser].rssi)
 
-        self.dlTime = time.time() - startTime
-        
+        self.dlTime = time.time() - startTime        
         if time.time() - initialTime > self.param.playbackDelay:
             for u in range(self.param.userNum):
                 if self.param.Tseg * self.users[u].buffer[0] - self.users[u].plTime < self.dlTime:
                     self.users[u].stats.rebuf += self.dlTime - self.param.Tseg * self.users[u].buffer[0] + self.users[u].plTime
                     self.users[u].rebufFlag = 1
-                self.users[u].reward(self.dlTime)  ## The reward is calculated here.
+                self.users[u].reward(self.dlTime,subSeg)  ## The reward is calculated here.
 
             if subSeg[1] == 0:
                 self.users[activeUser].lastSegs[0] += 1
-		if self.users[activeUser].stats.receiverBuffer[0] < self.param.totSimTime:
-                	self.users[activeUser].buffer[0] = min(self.param.bufferLimit,self.users[activeUser].buffer[0] + 1)
-                	self.users[activeUser].stats.receiverBuffer[0] += 1
+	#	if subSeg[0] < self.param.totSimTime:
+               	self.users[activeUser].buffer[0] = min(self.param.bufferLimit,self.users[activeUser].buffer[0] + 1)
+               	self.users[activeUser].stats.receiverBuffer[0] += 1
             else:
                 self.users[activeUser].lastSegs[subSeg[1]] += 1
                 if self.param.Tseg * subSeg[0] + self.param.playbackDelay - self.users[activeUser].plTime >= self.dlTime:
-		    if self.users[activeUser].stats.receiverBuffer[subSeg[1]] < self.param.totSimTime:
-                    	self.users[activeUser].buffer[subSeg[1]] = min(self.param.bufferLimit,self.users[activeUser].buffer[subSeg[1]] + 1)
-                    	self.users[activeUser].stats.receiverBuffer[subSeg[1]] += 1
+	#	    if subSeg[0] < self.param.totSimTime:
+                    self.users[activeUser].buffer[subSeg[1]] = min(self.param.bufferLimit,self.users[activeUser].buffer[subSeg[1]] + 1)
+                    self.users[activeUser].stats.receiverBuffer[subSeg[1]] += 1
 
             for u in range(self.param.userNum):
+		print self.dlTime,self.users[u].plTime
                 for l in range(self.param.numLayer):
                     self.users[u].buffer[l] = max(0,self.users[u].buffer[l] - math.floor(self.users[u].plTime + self.dlTime))
-                if self.dlTime + self.users[u].plTime > 1:
-                    self.users[u].plTime  = (self.users[u].plTime + self.dlTime) - math.floor(self.users[u].plTime + self.dlTime)
+#                if self.dlTime + self.users[u].plTime > 1:
+                self.users[u].plTime  = (self.users[u].plTime + self.dlTime) - math.floor(self.users[u].plTime + self.dlTime)
                 if self.users[u].rebufFlag == 1:
                     self.users[u].plTime = 0
                     self.users[u].rebufFlag = 0

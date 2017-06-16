@@ -38,10 +38,11 @@ class statistics:
         outputRebufSlots.write(str(self.rebuffSlots))
 
         temp = self.chanStateTraj
-        if self.chanStateTraj[0] == '[':
-            temp.pop(0)
-        if self.chanStateTraj[len(self.chanStateTraj) - 1] == ']':
-            temp.pop(len(temp) - 1)
+	if len(temp) > 0:	   
+            if self.chanStateTraj[0] == '[':
+                temp.pop(0)
+            if self.chanStateTraj[len(self.chanStateTraj) - 1] == ']':
+                temp.pop(len(temp) - 1)
         outputChanTraj.write(str(temp))
         outputLayerRatio.write(str(self.receiverBuffer[0]) + ',' + str(self.receiverBuffer[1]))
         outputReward.close()
@@ -107,10 +108,13 @@ class user:
                 dur = residue
 
             if layers > 0:
-                r += ((1 - math.exp(-1 * self.alpha * (float(self.param.frameRates[layers - 1]) / float(self.param.frameRates[self.param.numLayer - 1]))**self.beta)) / (1 - math.exp(-1 * self.alpha))) * dur * self.param.discount**(time.time() - initialTime - self.param.playbackDelay)
+               # r += ((1 - math.exp(-1 * self.alpha * (float(self.param.frameRates[layers - 1]) / float(self.param.frameRates[self.param.numLayer - 1]))**self.beta)) / (1 - math.exp(-1 * self.alpha))) * dur * self.param.discount**(time.time() - initialTime - self.param.playbackDelay)
 
+                r += (1 - math.exp(-1 * self.alpha * (float(self.param.frameRates[layers - 1]) / float(self.param.frameRates[self.param.numLayer - 1]))) / (1 - math.exp(-1 * self.alpha))) * dlTime
             else: ##This occurs if we have re-buffering
-                r += self.penalty * dur * self.param.discount**(time.time() - initialTime - self.param.playbackDelay)
+               # r += self.penalty * dur * self.param.discount**(time.time() - initialTime - self.param.playbackDelay)
+
+                r += self.penalty * dlTime
         self.stats.totalReward += r
 
 class scheduler:
@@ -238,7 +242,7 @@ class scheduler:
                 self.users[activeUser].lastSegs[subSeg[1]] += 1
                 if self.param.Tseg * subSeg[0] + self.param.playbackDelay - self.users[activeUser].plTime >= self.dlTime:
 		    if self.users[activeUser].buffer[subSeg[1]] < totalSimTime:
-                    	self.users[activeUser].buffer[subSeg[1]] = min(self.param.bufferLimit,self.users[activeUser].buffer[subSeg[1] + 1])
+                    	self.users[activeUser].buffer[subSeg[1]] = min(self.param.bufferLimit,self.users[activeUser].buffer[subSeg[1]] + 1)
                     	self.users[activeUser].stats.receiverBuffer[subSeg[1]] += 1
 
             for u in range(self.param.userNum):

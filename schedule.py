@@ -87,7 +87,7 @@ class user:
         self.stats = statistics(parameters)
     def reward(self,dlTime):
 	for l in range(self.param.numLayer):
-	    if self.stats.receiverBuffer[l] == totalSimTime:
+	    if self.stats.receiverBuffer[l] == self.param.totSimTime:
 		break 
         numSegs = int((self.plTime + dlTime) / self.param.Tseg)
         residue = self.param.Tseg * ((self.plTime + dlTime) / self.param.Tseg - int((self.plTime + dlTime) / self.param.Tseg))
@@ -154,7 +154,7 @@ class scheduler:
 	    
             chanCandidate = [u for u in range(self.param.userNum) if self.users[u].rssi == max([self.users[i].rssi for i in range(self.param.userNum) if self.users[i].bufTracker <= 0])]
 	    #print chanCandidate
-	    #print [self.users[i].bufTracker for i in range(self.param.userNum)]
+	    print [self.users[i].bufTracker for i in range(self.param.userNum)]
 	    #print [self.users[i].rssi for i in range(self.param.userNum)]
 	    #print '++++++++++++++++++++'
            #chanCandidate = [u for u in range(self.param.userNum) if self.users[u].rssi == max([self.users[i].rssi for i in range(self.param.userNum) if self.users[i].bufTracker <= 0])]
@@ -235,13 +235,13 @@ class scheduler:
 
             if subSeg[1] == 0:
                 self.users[activeUser].lastSegs[0] += 1
-		if self.users[activeUser].buffer[0] < totalSimTime:
+		if self.users[activeUser].buffer[0] < self.param.totSimTime:
                 	self.users[activeUser].buffer[0] = min(self.param.bufferLimit,self.users[activeUser].buffer[0] + 1)
                 	self.users[activeUser].stats.receiverBuffer[0] += 1
             else:
                 self.users[activeUser].lastSegs[subSeg[1]] += 1
                 if self.param.Tseg * subSeg[0] + self.param.playbackDelay - self.users[activeUser].plTime >= self.dlTime:
-		    if self.users[activeUser].buffer[subSeg[1]] < totalSimTime:
+		    if self.users[activeUser].buffer[subSeg[1]] < self.param.totSimTime:
                     	self.users[activeUser].buffer[subSeg[1]] = min(self.param.bufferLimit,self.users[activeUser].buffer[subSeg[1]] + 1)
                     	self.users[activeUser].stats.receiverBuffer[subSeg[1]] += 1
 

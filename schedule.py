@@ -63,7 +63,7 @@ class param:
         self.numLayer = 3
         self.frameRates = [6,12,24]
         self.discount = 0.99
-        self.epsilon = 0.01
+        self.epsilon = 0.1
         self.Tseg = 1
 
 class user:
@@ -149,10 +149,16 @@ class scheduler:
                 active_v = candidate[k]
             else:
                 active_v = candidate[0]
-        elif self.mode == 'heuristic':
-            #chanCandidate = [u for u in range(self.param.userNum) if self.users[u].rssi == max([self.users[i].rssi for i in range(self.param.userNum) if self.users[i].bufTracker <= 0 and self.users[i].bufTracker == min([self.users[j].bufTracker for j in range(self.param.userNum)])])]
 	    
-            chanCandidate = [u for u in range(self.param.userNum) if self.users[u].rssi == max([self.users[i].rssi for i in range(self.param.userNum) if self.users[i].bufTracker <= 0])]
+	
+        elif self.mode == 'heuristic':
+
+            tmpCan = [self.users[i].rssi for i in range(self.param.userNum) if self.users[i].bufTracker <= 0 and self.users[i].bufTracker == min([self.users[j].bufTracker for j in range(self.param.userNum)])]
+	    if len(tmpCan) > 0:
+            	chanCandidate = [u for u in range(self.param.userNum) if self.users[u].rssi == max(tmpCan)]
+	    else:
+		chanCandidate = []
+            #ChanCandidate = [u for u in range(self.param.userNum) if self.users[u].rssi == max([self.users[i].rssi for i in range(self.param.userNum) if self.users[i].bufTracker <= 0])]
 	    #print chanCandidate
 	    print [self.users[i].bufTracker for i in range(self.param.userNum)]
 	    #print [self.users[i].rssi for i in range(self.param.userNum)]
@@ -182,10 +188,10 @@ class scheduler:
         for i in range(self.param.userNum):
             if active_v == i:
                 self.users[i].rateAccum = (1 - 1.0/self.users[i].tc) * self.users[i].rateAccum + (1.0/self.users[i].tc) * self.users[i].rate
-                self.users[i].bufTracker += self.param.epsilon*self.dlTime #slightly diverge from the original heuristic because only one segment is downloaded each time
+                self.users[i].bufTracker += self.param.epsilon #slightly diverge from the original heuristic because only one segment is downloaded each time
             else:
                 self.users[i].rateAccum = (1 - 1.0/self.users[i].tc) * self.users[i].rateAccum
-                self.users[i].bufTracker -= self.param.epsilon*self.dlTime
+                self.users[i].bufTracker -= 0.2 * self.param.epsilon
         return active_v
 
     def NextSegmentsToSend(self,activeUser):

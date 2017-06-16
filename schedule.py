@@ -108,13 +108,13 @@ class user:
                 dur = residue
 
             if layers > 0:
-               # r += ((1 - math.exp(-1 * self.alpha * (float(self.param.frameRates[layers - 1]) / float(self.param.frameRates[self.param.numLayer - 1]))**self.beta)) / (1 - math.exp(-1 * self.alpha))) * dur * self.param.discount**(time.time() - initialTime - self.param.playbackDelay)
+                r += ((1 - math.exp(-1 * self.alpha * (float(self.param.frameRates[layers - 1]) / float(self.param.frameRates[self.param.numLayer - 1]))**self.beta)) / (1 - math.exp(-1 * self.alpha))) * dur * self.param.discount**(time.time() - initialTime - self.param.playbackDelay)
 
-                r += (1 - math.exp(-1 * self.alpha * (float(self.param.frameRates[layers - 1]) / float(self.param.frameRates[self.param.numLayer - 1]))) / (1 - math.exp(-1 * self.alpha))) * dlTime
+               # r += (1 - math.exp(-1 * self.alpha * (float(self.param.frameRates[layers - 1]) / float(self.param.frameRates[self.param.numLayer - 1]))) / (1 - math.exp(-1 * self.alpha))) * dlTime
             else: ##This occurs if we have re-buffering
-               # r += self.penalty * dur * self.param.discount**(time.time() - initialTime - self.param.playbackDelay)
+                r += self.penalty * dur * self.param.discount**(time.time() - initialTime - self.param.playbackDelay)
 
-                r += self.penalty * dlTime
+               # r += self.penalty * dlTime
         self.stats.totalReward += r
 
 class scheduler:
@@ -191,7 +191,7 @@ class scheduler:
                 self.users[i].bufTracker += self.param.epsilon #slightly diverge from the original heuristic because only one segment is downloaded each time
             else:
                 self.users[i].rateAccum = (1 - 1.0/self.users[i].tc) * self.users[i].rateAccum
-                self.users[i].bufTracker -= 0.2 * self.param.epsilon
+                self.users[i].bufTracker -= self.dlTime * self.param.epsilon
         return active_v
 
     def NextSegmentsToSend(self,activeUser):

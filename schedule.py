@@ -208,7 +208,6 @@ class scheduler:
                 break
             
 	
-#	print self.users[activeUser].buffer[0],self.users[activeUser].buffer[1],self.users[activeUser].buffer[2],layerToRequest
         if layerToRequest == 0: ##If base layer is requested, it should be consecutive because no jumps are allowed in the base layer.
             segmentToRequest = self.users[activeUser].lastSegs[0] + 1
         else:
@@ -235,21 +234,21 @@ class scheduler:
                     self.users[u].stats.rebuf += self.dlTime - self.param.Tseg * self.users[u].buffer[0] + self.users[u].plTime
                     self.users[u].rebufFlag = 1
                 self.users[u].reward(self.dlTime,subSeg)  ## The reward is calculated here.
-
+            print subSeg
             if subSeg[1] == 0:
                 self.users[activeUser].lastSegs[0] += 1
-	#	if subSeg[0] < self.param.totSimTime:
-               	self.users[activeUser].buffer[0] = min(self.param.bufferLimit,self.users[activeUser].buffer[0] + 1)
-               	self.users[activeUser].stats.receiverBuffer[0] += 1
+		if subSeg[0] < self.param.totSimTime:
+                   	self.users[activeUser].buffer[0] = min(self.param.bufferLimit,self.users[activeUser].buffer[0] + 1)
+                 	self.users[activeUser].stats.receiverBuffer[0] += 1
             else:
                 self.users[activeUser].lastSegs[subSeg[1]] += 1
                 if self.param.Tseg * subSeg[0] + self.param.playbackDelay - self.users[activeUser].plTime >= self.dlTime:
-	#	    if subSeg[0] < self.param.totSimTime:
-                    self.users[activeUser].buffer[subSeg[1]] = min(self.param.bufferLimit,self.users[activeUser].buffer[subSeg[1]] + 1)
-                    self.users[activeUser].stats.receiverBuffer[subSeg[1]] += 1
+		    if subSeg[0] < self.param.totSimTime:
+                        self.users[activeUser].buffer[subSeg[1]] = min(self.param.bufferLimit,self.users[activeUser].buffer[subSeg[1]] + 1)
+                        self.users[activeUser].stats.receiverBuffer[subSeg[1]] += 1
 
             for u in range(self.param.userNum):
-		print self.dlTime,self.users[u].plTime
+	#	print self.dlTime,self.users[u].plTime
                 for l in range(self.param.numLayer):
                     self.users[u].buffer[l] = max(0,self.users[u].buffer[l] - math.floor(self.users[u].plTime + self.dlTime))
 #                if self.dlTime + self.users[u].plTime > 1:
@@ -353,7 +352,7 @@ while True:
             if userNo >= 0 and BSNode.users[i].IPLastByte == userNo:
                 BSNode.users[i].rssi = int(string)
     scheduledUser = BSNode.schedule()
-    print scheduledUser
+    #print scheduledUser
     newSegment = BSNode.NextSegmentsToSend(scheduledUser)
     BSNode.transmit(newSegment,Sockets,scheduledUser)
 

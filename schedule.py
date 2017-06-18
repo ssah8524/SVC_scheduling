@@ -157,7 +157,7 @@ class scheduler:
             	chanCandidate = [u for u in range(self.param.userNum) if self.users[u].rssi == max(tmpCan)]
 	    else:
 		chanCandidate = []
-	    #print [self.users[i].bufTracker for i in range(self.param.userNum)]
+	   # print [self.users[i].bufTracker for i in range(self.param.userNum)]
 	    if len(chanCandidate) == 0:
                 bufCandidate = [u for u in range(self.param.userNum) if self.users[u].buffer[0] == min([self.users[i].buffer[0] for i in range(self.param.userNum) if self.users[i].bufTracker > 0])]
                 if len(bufCandidate) > 1:
@@ -185,6 +185,7 @@ class scheduler:
             else:
                 self.users[i].rateAccum = (1 - 1.0/self.users[i].tc) * self.users[i].rateAccum
                 self.users[i].bufTracker -= self.dlTime * self.param.epsilon
+                #self.users[i].bufTracker -= self.param.epsilon
         return active_v
 
     def NextSegmentsToSend(self,activeUser):
@@ -225,14 +226,15 @@ class scheduler:
         self.users[activeUser].rate = txRate
         self.users[activeUser].stats.chanStateTraj.append(self.users[activeUser].rssi)
 
-        self.dlTime = time.time() - startTime        
+        self.dlTime = time.time() - startTime
+#	print self.dlTime,activeUser        
         if time.time() - initialTime > self.param.playbackDelay:
             for u in range(self.param.userNum):
+#		print self.users[u].buffer,self.users[u].plTime,self.users[u].stats.rebuf 
                 if self.param.Tseg * self.users[u].buffer[0] - self.users[u].plTime < self.dlTime:
                     self.users[u].stats.rebuf += self.dlTime - self.param.Tseg * self.users[u].buffer[0] + self.users[u].plTime
-                    self.users[u].rebufFlag = i
-	for u in range(self.param.userNum):
-            self.users[u].reward(self.dlTime,subSeg)  ## The reward is calculated here.
+                    self.users[u].rebufFlag = 1
+            	self.users[u].reward(self.dlTime,subSeg)  ## The reward is calculated here.
         if subSeg[1] == 0:
             self.users[activeUser].lastSegs[0] += 1
             self.users[activeUser].buffer[0] = min(self.param.bufferLimit,self.users[activeUser].buffer[0] + 1)
@@ -246,13 +248,10 @@ class scheduler:
         for u in range(self.param.userNum):
             for l in range(self.param.numLayer):
                 self.users[u].buffer[l] = max(0,self.users[u].buffer[l] - math.floor(self.users[u].plTime + self.dlTime))
-            self.users[u].plTime  = (self.users[u].plTime + self.dlTime) - math.floor(self.users[u].plTime + self.dlTime)
+            	self.users[u].plTime  = (self.users[u].plTime + self.dlTime) - math.floor(self.users[u].plTime + self.dlTime)
             if self.users[u].rebufFlag == 1:
                 self.users[u].plTime = 0
                 self.users[u].rebufFlag = 0
-
-#        if time.time() - startTime > self.param.timeSlot:
-#            print "download exceeded time slot duration"
 
 class socketHandler:
     def __init__(self,Parameters):
@@ -291,10 +290,6 @@ class socketHandler:
 
 ##First, the AP pings all users to add the entry into the ARP table.
 Parameters = param()
-
-#for n in range(8):
-#    IP = "192.168.0." + str(n + 2)
-#    subprocess.call("ping -c 2 " + IP,shell=True)
 
 BSNode = scheduler(sys.argv[5],Parameters)
 Sockets = socketHandler(Parameters)

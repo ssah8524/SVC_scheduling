@@ -63,13 +63,13 @@ class param:
         self.numLayer = 3
         self.frameRates = [6,12,24]
         self.discount = 0.99
-        self.epsilon = 0.1
+        self.epsilon = 0.01
         self.Tseg = 1
 
 class user:
     alpha = 2
     beta = 0.63
-    penalty = 0
+    penalty = -0.1
     def __init__(self,parameters):
         # For now let's assume that all users start from an initially empty buffer
         self.param = parameters
@@ -78,7 +78,7 @@ class user:
         self.rate = 0.1
         self.tc = 100
         self.rateAccum = 0.0
-        self.bufTracker = 0.0
+        self.bufTracker = 0.2
         self.rebufFlag = 0
         self.plTime = 0.0
         self.IPLastByte = -1
@@ -109,11 +109,11 @@ class user:
             if layers > 0:
                 r += ((1 - math.exp(-1 * self.alpha * (float(self.param.frameRates[layers - 1]) / float(self.param.frameRates[self.param.numLayer - 1]))**self.beta)) / (1 - math.exp(-1 * self.alpha))) * dur * self.param.discount**(time.time() - initialTime - self.param.playbackDelay)
 
-               # r += (1 - math.exp(-1 * self.alpha * (float(self.param.frameRates[layers - 1]) / float(self.param.frameRates[self.param.numLayer - 1]))) / (1 - math.exp(-1 * self.alpha))) * dlTime
+
+                #r +=1.0/self.param.totSimTime * ((1 - math.exp(-1 * self.alpha * (float(self.param.frameRates[layers - 1]) / float(self.param.frameRates[self.param.numLayer - 1]))**self.beta)) / (1 - math.exp(-1 * self.alpha))) * dur
             else: ##This occurs if we have re-buffering
                 r += self.penalty * dur * self.param.discount**(time.time() - initialTime - self.param.playbackDelay)
-
-               # r += self.penalty * dlTime
+                #r +=1.0/self.param.totSimTime *  self.penalty * dur
         self.stats.totalReward += r
 
 class scheduler:
@@ -227,10 +227,10 @@ class scheduler:
         self.users[activeUser].stats.chanStateTraj.append(self.users[activeUser].rssi)
 
         self.dlTime = time.time() - startTime
-#	print self.dlTime,activeUser        
+        print '++++'
         if time.time() - initialTime > self.param.playbackDelay:
             for u in range(self.param.userNum):
-#		print self.users[u].buffer,self.users[u].plTime,self.users[u].stats.rebuf 
+		print self.users[u].buffer,activeUser,self.users[u].plTime,self.dlTime,subSeg[1]
                 if self.param.Tseg * self.users[u].buffer[0] - self.users[u].plTime < self.dlTime:
                     self.users[u].stats.rebuf += self.dlTime - self.param.Tseg * self.users[u].buffer[0] + self.users[u].plTime
                     self.users[u].rebufFlag = 1
@@ -248,7 +248,7 @@ class scheduler:
         for u in range(self.param.userNum):
             for l in range(self.param.numLayer):
                 self.users[u].buffer[l] = max(0,self.users[u].buffer[l] - math.floor(self.users[u].plTime + self.dlTime))
-            	self.users[u].plTime  = (self.users[u].plTime + self.dlTime) - math.floor(self.users[u].plTime + self.dlTime)
+            self.users[u].plTime  = (self.users[u].plTime + self.dlTime) - math.floor(self.users[u].plTime + self.dlTime)
             if self.users[u].rebufFlag == 1:
                 self.users[u].plTime = 0
                 self.users[u].rebufFlag = 0

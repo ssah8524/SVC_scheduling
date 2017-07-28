@@ -78,7 +78,7 @@ class user:
         self.rate = 0.1
         self.tc = 100
         self.rateAccum = 0.0
-        self.bufTracker = 0.2
+        self.bufTracker = 0.0
         self.rebufFlag = 0
         self.plTime = 0.0
         self.IPLastByte = -1
@@ -151,36 +151,39 @@ class scheduler:
 	    
 	
         elif self.mode == 'heuristic':
-	    curBase = [self.users[u].buffer[0] for u in range(self.param.userNum)]
-	    candidate = find_minmax(curBase,lambda x: x == min(curBase))
-	    if len(candidate) > 1:
-		Chan = [self.users[u].rssi for u in candidate]
-		maxChanIndex = find_minmax(Chan,lambda x: x == max(Chan))
-		if len(maxChanIndex) == 1:
-		    active_v = candidate[maxChanIndex[0]]
-		else:
-		    k = random.randint(0,len(maxChanIndex) - 1)
-		    active_v = candidate[maxChanIndex[k]]
+
+#	    curBase = [self.users[u].buffer[0] for u in range(self.param.userNum)]
+#	    candidate = find_minmax(curBase,lambda x: x == min(curBase))
+#	    if len(candidate) > 1:
+#		Chan = [self.users[u].rssi for u in candidate]
+#		maxChanIndex = find_minmax(Chan,lambda x: x == max(Chan))
+#		if len(maxChanIndex) == 1:
+#		    active_v = candidate[maxChanIndex[0]]
+#		else:
+#		    k = random.randint(0,len(maxChanIndex) - 1)
+#		    active_v = candidate[maxChanIndex[k]]
+#            else:
+#		active_v = candidate[0]
+
+	    tmpCan = [self.users[i].rssi for i in range(self.param.userNum) if self.users[i].bufTracker <= 0 and self.users[i].bufTracker == min([self.users[j].bufTracker for j in range(self.param.userNum)])]
+	    if len(tmpCan) > 0:
+            	chanCandidate = [u for u in range(self.param.userNum) if self.users[u].rssi == max(tmpCan)]
+	    else:
+            chanCandidate = []
+            #print [self.users[i].bufTracker for i in range(self.param.userNum)]
+	    if len(chanCandidate) == 0:
+                bufCandidate = [u for u in range(self.param.userNum) if self.users[u].buffer[0] == min([self.users[i].buffer[0] for i in range(self.param.userNum) if self.users[i].bufTracker > 0])]
+                if len(bufCandidate) > 1:
+                    k = random.randint(0,len(bufCandidate)-1)
+                    active_v = bufCandidate[k]
+                else:
+                    active_v = bufCandidate[0]
+            elif len(chanCandidate) > 1:
+                k = random.randint(0,len(chanCandidate)-1)
+                active_v = chanCandidate[k]
             else:
-		active_v = candidate[0]
-	    #tmpCan = [self.users[i].rssi for i in range(self.param.userNum) if self.users[i].bufTracker <= 0 and self.users[i].bufTracker == min([self.users[j].bufTracker for j in range(self.param.userNum)])]
-	    #if len(tmpCan) > 0:
-            #	chanCandidate = [u for u in range(self.param.userNum) if self.users[u].rssi == max(tmpCan)]
-	    #else:
-		#chanCandidate = []
-	   # print [self.users[i].bufTracker for i in range(self.param.userNum)]
-	    #if len(chanCandidate) == 0:
-             #   bufCandidate = [u for u in range(self.param.userNum) if self.users[u].buffer[0] == min([self.users[i].buffer[0] for i in range(self.param.userNum) if self.users[i].bufTracker > 0])]
-              #  if len(bufCandidate) > 1:
-               #     k = random.randint(0,len(bufCandidate)-1)
-                #    active_v = bufCandidate[k]
-                #else:
-                #    active_v = bufCandidate[0]
-            #elif len(chanCandidate) > 1:
-            #    k = random.randint(0,len(chanCandidate)-1)
-            #    active_v = chanCandidate[k]
-            #else:
-            #    active_v = chanCandidate[0]
+                active_v = chanCandidate[0]
+
         elif self.mode == 'maxurgency':
             curBase = [self.users[u].buffer[0] for u in range(self.param.userNum)]
             candidate = find_minmax(curBase, lambda x: x == min(curBase))
@@ -192,11 +195,12 @@ class scheduler:
         for i in range(self.param.userNum):
             if active_v == i:
                 self.users[i].rateAccum = (1 - 1.0/self.users[i].tc) * self.users[i].rateAccum + (1.0/self.users[i].tc) * self.users[i].rate
-                self.users[i].bufTracker += self.param.epsilon #slightly diverge from the original heuristic because only one segment is downloaded each time
+                #self.users[i].bufTracker += self.param.epsilon #slightly diverge from the original heuristic because only one segment is downloaded each time
+                self.users[i].bufTracker = (1 - self.param.epsilon) * self.users[i].bufTracker + self.param.epsilon * ((users[u].buffer[0] - users[u].oldBuffer[0]) + (users[u].buffer[1] - users[u].oldBuffer[1]) + (users[u].buffer[2] - users[u].oldBuffer[2]) - 1)
             else:
                 self.users[i].rateAccum = (1 - 1.0/self.users[i].tc) * self.users[i].rateAccum
-                self.users[i].bufTracker -= self.dlTime * self.param.epsilon
-                #self.users[i].bufTracker -= self.param.epsilon
+                #self.users[i].bufTracker -= self.dlTime * self.param.epsilon
+                self.users[i].bufTracker -= self.param.epsilon
         return active_v
 
     def NextSegmentsToSend(self,activeUser):

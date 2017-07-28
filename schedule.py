@@ -63,7 +63,7 @@ class param:
         self.numLayer = 3
         self.frameRates = [6,12,24]
         self.discount = 0.99
-        self.epsilon = 0.01
+        self.epsilon = 0.1
         self.Tseg = 1
 
 class user:
@@ -169,7 +169,7 @@ class scheduler:
 	    if len(tmpCan) > 0:
             	chanCandidate = [u for u in range(self.param.userNum) if self.users[u].rssi == max(tmpCan)]
 	    else:
-            chanCandidate = []
+	        chanCandidate = []
             #print [self.users[i].bufTracker for i in range(self.param.userNum)]
 	    if len(chanCandidate) == 0:
                 bufCandidate = [u for u in range(self.param.userNum) if self.users[u].buffer[0] == min([self.users[i].buffer[0] for i in range(self.param.userNum) if self.users[i].bufTracker > 0])]
@@ -195,12 +195,12 @@ class scheduler:
         for i in range(self.param.userNum):
             if active_v == i:
                 self.users[i].rateAccum = (1 - 1.0/self.users[i].tc) * self.users[i].rateAccum + (1.0/self.users[i].tc) * self.users[i].rate
-                #self.users[i].bufTracker += self.param.epsilon #slightly diverge from the original heuristic because only one segment is downloaded each time
-                self.users[i].bufTracker = (1 - self.param.epsilon) * self.users[i].bufTracker + self.param.epsilon * ((users[u].buffer[0] - users[u].oldBuffer[0]) + (users[u].buffer[1] - users[u].oldBuffer[1]) + (users[u].buffer[2] - users[u].oldBuffer[2]) - 1)
             else:
                 self.users[i].rateAccum = (1 - 1.0/self.users[i].tc) * self.users[i].rateAccum
                 #self.users[i].bufTracker -= self.dlTime * self.param.epsilon
-                self.users[i].bufTracker -= self.param.epsilon
+                #self.users[i].bufTracker -= self.param.epsilon
+            self.users[i].bufTracker = (1 - self.param.epsilon) * self.users[i].bufTracker + self.param.epsilon * ((self.users[i].buffer[0] - self.users[i].oldBuffer[0]) + (self.users[i].buffer[1] - self.users[i].oldBuffer[1]) + (self.users[i].buffer[2] - self.users[i].oldBuffer[2]) - 3)
+
         return active_v
 
     def NextSegmentsToSend(self,activeUser):
@@ -209,19 +209,24 @@ class scheduler:
             self.users[u].oldBuffer = [self.users[u].buffer[l] for l in range(self.param.numLayer)]
 
         layerToRequest = 0
+	flag = 0
         segmentToRequest = -1
+	diff = [0 for i in range(self.param.numLayer)]
         for l in range(self.param.numLayer - 1):
-	    if self.users[activeUser].buffer[l] == self.param.bufferLimit:
-		if l == self.param.numLayer - 2 and self.users[activeUser].buffer[l + 1] != self.param.bufferLimit:
-		    layerToRequest = l + 1
-		continue
-            elif self.users[activeUser].buffer[l] - self.users[activeUser].buffer[l + 1] <= self.param.preFetchThreshold:
-                layerToRequest = l
-                break
-            elif self.users[activeUser].buffer[l] - self.users[activeUser].buffer[l + 1] > self.param.preFetchThreshold:
-                layerToRequest = l + 1
-                break
-            
+	    diff[l] = self.users[activeUser].buffer[l] - self.users[activeUser].buffer[l + 1]
+            if diff[l] < self.param.preFetchThreshold and self.users[activeUser].buffer[l] < self.param.bufferLimit:
+		layerToRequest = l
+		flag = 1
+		break
+	    elif self.users[activeUser].buffer[l] == self.param.bufferLimit:
+		diff[l] = -1000
+	if flag == 0:
+	    Request = find_minmax(diff,lambda x: x == max(diff))
+	    layerToRequest = Request[0]
+	##Temporary manual trick
+        if diff[0] == self.param.preFetchThreshold and diff[1] > 0:
+	    layerToRequest = 2        
+
         if layerToRequest == 0: ##If base layer is requested, it should be consecutive because no jumps are allowed in the base layer.
             segmentToRequest = self.users[activeUser].lastSegs[0] + 1
         else:
@@ -258,8 +263,8 @@ class scheduler:
             self.users[activeUser].lastSegs[subSeg[1]] += 1
             if self.param.Tseg * subSeg[0] + self.param.playbackDelay - self.users[activeUser].plTime >= self.dlTime:
                 self.users[activeUser].buffer[subSeg[1]] = min(self.param.bufferLimit,self.users[activeUser].buffer[subSeg[1]] + 1)
-
-                self.users[activeUser].stats.receiverBuffer[subSeg[1]] = min(self.param.totSimTime,self.users[activeUser].stats.receiverBuffer[subSeg[1]] + 1)
+		if self.users[activeUser].buffer[subSeg[1]] + 1 <= self.param.bufferLimit:
+                    self.users[activeUser].stats.receiverBuffer[subSeg[1]] = min(self.param.totSimTime,self.users[activeUser].stats.receiverBuffer[subSeg[1]] + 1)
         for u in range(self.param.userNum):
             for l in range(self.param.numLayer):
                 self.users[u].buffer[l] = max(0,self.users[u].buffer[l] - math.floor(self.users[u].plTime + self.dlTime))
@@ -359,7 +364,10 @@ while True:
     #print scheduledUser
     newSegment = BSNode.NextSegmentsToSend(scheduledUser)
     BSNode.transmit(newSegment,Sockets,scheduledUser)
-
+#    for i in range(Parameters.userNum):
+#	print BSNode.users[i].stats.receiverBuffer
+#	print BSNode.users[i].buffer
+#    print '+++++++++++++++++++'	    
     end = time.time()
     totalTime += end - start
 

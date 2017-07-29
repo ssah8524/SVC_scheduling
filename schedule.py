@@ -69,7 +69,7 @@ class param:
 class user:
     alpha = 2
     beta = 0.63
-    penalty = 0.0
+    penalty = -0.05
     def __init__(self,parameters):
         # For now let's assume that all users start from an initially empty buffer
         self.param = parameters
@@ -109,8 +109,6 @@ class user:
             if layers > 0:
                 r += ((1 - math.exp(-1 * self.alpha * (float(self.param.frameRates[layers - 1]) / float(self.param.frameRates[self.param.numLayer - 1]))**self.beta)) / (1 - math.exp(-1 * self.alpha))) * dur * self.param.discount**(time.time() - initialTime - self.param.playbackDelay)
 
-
-                #r +=1.0/self.param.totSimTime * ((1 - math.exp(-1 * self.alpha * (float(self.param.frameRates[layers - 1]) / float(self.param.frameRates[self.param.numLayer - 1]))**self.beta)) / (1 - math.exp(-1 * self.alpha))) * dur
             else: ##This occurs if we have re-buffering
                 r += self.penalty * dur * self.param.discount**(time.time() - initialTime - self.param.playbackDelay)
                 #r +=1.0/self.param.totSimTime *  self.penalty * dur
@@ -152,25 +150,13 @@ class scheduler:
 	
         elif self.mode == 'heuristic':
 
-#	    curBase = [self.users[u].buffer[0] for u in range(self.param.userNum)]
-#	    candidate = find_minmax(curBase,lambda x: x == min(curBase))
-#	    if len(candidate) > 1:
-#		Chan = [self.users[u].rssi for u in candidate]
-#		maxChanIndex = find_minmax(Chan,lambda x: x == max(Chan))
-#		if len(maxChanIndex) == 1:
-#		    active_v = candidate[maxChanIndex[0]]
-#		else:
-#		    k = random.randint(0,len(maxChanIndex) - 1)
-#		    active_v = candidate[maxChanIndex[k]]
-#            else:
-#		active_v = candidate[0]
-
 	    tmpCan = [self.users[i].rssi for i in range(self.param.userNum) if self.users[i].bufTracker <= 0 and self.users[i].bufTracker == min([self.users[j].bufTracker for j in range(self.param.userNum)])]
+	    #tmpCan = [self.users[i].rssi for i in range(self.param.userNum) if self.users[i].bufTracker <= 0]	
 	    if len(tmpCan) > 0:
             	chanCandidate = [u for u in range(self.param.userNum) if self.users[u].rssi == max(tmpCan)]
 	    else:
 	        chanCandidate = []
-            #print [self.users[i].bufTracker for i in range(self.param.userNum)]
+	    
 	    if len(chanCandidate) == 0:
                 bufCandidate = [u for u in range(self.param.userNum) if self.users[u].buffer[0] == min([self.users[i].buffer[0] for i in range(self.param.userNum) if self.users[i].bufTracker > 0])]
                 if len(bufCandidate) > 1:
@@ -195,12 +181,13 @@ class scheduler:
         for i in range(self.param.userNum):
             if active_v == i:
                 self.users[i].rateAccum = (1 - 1.0/self.users[i].tc) * self.users[i].rateAccum + (1.0/self.users[i].tc) * self.users[i].rate
+		self.users[i].bufTracker = (1 - self.param.epsilon) * self.users[i].bufTracker + self.param.epsilon * ((self.users[i].buffer[0] - self.users[i].oldBuffer[0]) + (self.users[i].buffer[1] - self.users[i].oldBuffer[1]) + (self.users[i].buffer[2] - self.users[i].oldBuffer[2]) + 2)
             else:
                 self.users[i].rateAccum = (1 - 1.0/self.users[i].tc) * self.users[i].rateAccum
-                #self.users[i].bufTracker -= self.dlTime * self.param.epsilon
-                #self.users[i].bufTracker -= self.param.epsilon
-            self.users[i].bufTracker = (1 - self.param.epsilon) * self.users[i].bufTracker + self.param.epsilon * ((self.users[i].buffer[0] - self.users[i].oldBuffer[0]) + (self.users[i].buffer[1] - self.users[i].oldBuffer[1]) + (self.users[i].buffer[2] - self.users[i].oldBuffer[2]) - 3)
-
+                self.users[i].bufTracker -= self.dlTime * self.param.epsilon
+#           	self.users[i].bufTracker = (1 - self.param.epsilon) * self.users[i].bufTracker + self.param.epsilon * ((self.users[i].buffer[0] - self.users[i].oldBuffer[0]) + (self.users[i].buffer[1] - self.users[i].oldBuffer[1]) + (self.users[i].buffer[2] - self.users[i].oldBuffer[2]))      
+#	print [self.users[i].bufTracker for i in range(self.param.userNum)]
+#	print active_v
         return active_v
 
     def NextSegmentsToSend(self,activeUser):
